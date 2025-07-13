@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'dart:ui' as ui;
+import 'tategaki.dart';
 
 class SlideshowView extends StatefulWidget {
   final String folderPath;
@@ -457,32 +458,56 @@ class _SlideshowViewState extends State<SlideshowView>
 
   // キャプション表示ウィジェット
   Widget _buildCaption() {
-    return Positioned(
-      right: 40,
-      top: 0,
-      bottom: 0,
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.3),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: RotatedBox(
-            quarterTurns: 1, // 90度回転して縦書きにする
-            child: Text(
-              currentCaption!,
-              style: const TextStyle(
-                color: Colors.black,
-                fontSize: 20,
-                fontWeight: FontWeight.normal,
-                height: 1.5,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // ウィンドウの横幅に比例してフォントサイズを計算
+        // 横幅2048pxのときに32ptになるように設定
+        final windowWidth = MediaQuery.of(context).size.width;
+        final fontSize = (windowWidth / 2048.0) * 32.0;
+        
+        // 最小・最大フォントサイズを設定
+        final clampedFontSize = fontSize.clamp(16.0, 48.0);
+        
+        // 文字間隔もフォントサイズに比例して調整
+        final space = (clampedFontSize / 32.0) * 6.0;
+        
+        // デバッグ情報を出力
+        print('DEBUG: _buildCaption - windowWidth: $windowWidth');
+        print('DEBUG: _buildCaption - fontSize: $fontSize');
+        print('DEBUG: _buildCaption - clampedFontSize: $clampedFontSize');
+        print('DEBUG: _buildCaption - space: $space');
+        print('DEBUG: _buildCaption - caption width: ${clampedFontSize * 2}');
+        print('DEBUG: _buildCaption - caption height: 400');
+        print('DEBUG: _buildCaption - constraints: $constraints');
+        print('DEBUG: _buildCaption - MediaQuery size: ${MediaQuery.of(context).size}');
+        
+        print('DEBUG: _buildCaption - Align right with Container');
+        return Align(
+          alignment: Alignment.centerRight,
+          child: Container(
+            margin: const EdgeInsets.only(right: 40),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: SizedBox(
+              width: clampedFontSize * 2, // フォントサイズに比例して幅を調整
+              height: 400, // 縦書きの高さ
+              child: Tategaki(
+                currentCaption!,
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: clampedFontSize,
+                  fontWeight: FontWeight.normal,
+                  height: 1.5,
+                ),
+                space: space, // 文字間隔
               ),
-              textAlign: TextAlign.center,
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

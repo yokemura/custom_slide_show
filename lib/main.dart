@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'
     show RawKeyboard, RawKeyDownEvent, LogicalKeyboardKey, MethodChannel;
 import 'package:file_picker/file_picker.dart';
+import 'package:desktop_drop/desktop_drop.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as path;
@@ -62,6 +63,8 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -100,32 +103,86 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     if (selectedFolderPath == null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.folder_open,
-              size: 64,
-              color: Colors.grey,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'No folder selected',
-              style: TextStyle(fontSize: 18, color: Colors.grey),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Click the folder button to select a folder with images',
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _openFolder,
-              icon: const Icon(Icons.folder_open),
-              label: const Text('Open Folder'),
-            ),
-          ],
+      return DropTarget(
+        onDragDone: (detail) async {
+          print('Flutter: Drop detected with ${detail.files.length} files');
+          if (detail.files.isNotEmpty) {
+            final file = detail.files.first;
+            final filePath = file.path;
+            print('Flutter: Dropped file path: $filePath');
+            
+            // Check if it's a directory
+            final directory = Directory(filePath);
+            if (await directory.exists()) {
+              print('Flutter: Dropped item is a directory, processing...');
+              await _processSelectedFolder(filePath);
+            } else {
+              print('Flutter: Dropped item is not a directory');
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Please drop a folder, not a file'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+          }
+        },
+        onDragEntered: (detail) {
+          print('Flutter: Drag entered');
+        },
+        onDragExited: (detail) {
+          print('Flutter: Drag exited');
+        },
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.grey.shade300,
+                    width: 3,
+                    style: BorderStyle.solid,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  color: Colors.grey.withOpacity(0.05),
+                ),
+                child: Column(
+                  children: [
+                    const Icon(
+                      Icons.folder_open,
+                      size: 64,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'No folder selected',
+                      style: TextStyle(
+                        fontSize: 18, 
+                        color: Colors.grey,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Drag and drop a folder with images here\nor click the button below',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _openFolder,
+                icon: const Icon(Icons.folder_open),
+                label: const Text('Open Folder'),
+              ),
+            ],
+          ),
         ),
       );
     }

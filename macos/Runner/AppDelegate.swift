@@ -3,6 +3,8 @@ import FlutterMacOS
 
 @main
 class AppDelegate: FlutterAppDelegate {
+  private var methodChannel: FlutterMethodChannel?
+  
   override func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
     return true
   }
@@ -13,17 +15,24 @@ class AppDelegate: FlutterAppDelegate {
     
     // Set up method channel for Flutter communication
     let controller = mainFlutterWindow?.contentViewController as! FlutterViewController
-    let channel = FlutterMethodChannel(name: "custom_slide_show/file_picker", binaryMessenger: controller.engine.binaryMessenger)
+    methodChannel = FlutterMethodChannel(name: "custom_slide_show/file_picker", binaryMessenger: controller.engine.binaryMessenger)
     
-    channel.setMethodCallHandler { [weak self] (call, result) in
+    methodChannel?.setMethodCallHandler { [weak self] (call, result) in
       print("AppDelegate: Method channel called with method: \(call.method)")
       if call.method == "pickFolder" {
         self?.pickFolder(result: result)
+      } else if call.method == "folderDropped" {
+        // This will be handled by the drag and drop events
+        result(FlutterMethodNotImplemented)
       } else {
         result(FlutterMethodNotImplemented)
       }
     }
+    
+
   }
+  
+
   
   private func pickFolder(result: @escaping FlutterResult) {
     print("pickFolder method called from Flutter")
