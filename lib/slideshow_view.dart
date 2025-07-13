@@ -207,7 +207,7 @@ class _SlideshowViewState extends State<SlideshowView>
                 if (!isFullScreen) _buildControls(),
 
                 // Progress indicator
-                _buildProgressIndicator(),
+                if (!isFullScreen) _buildProgressIndicator(),
               ],
             );
           },
