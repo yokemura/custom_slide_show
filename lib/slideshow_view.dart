@@ -165,8 +165,6 @@ class _SlideshowViewState extends State<SlideshowView>
 
   void _changeSlide(int newIndex) {
     if (newIndex >= 0 && newIndex < widget.slideshowData.length && !isTransitioning) {
-      print('DEBUG: _changeSlide called: currentIndex=$currentIndex -> newIndex=$newIndex');
-      
       setState(() {
         previousIndex = currentIndex;
         currentIndex = newIndex;
@@ -176,17 +174,13 @@ class _SlideshowViewState extends State<SlideshowView>
       // キャプションを更新
       _updateCaption();
 
-      print('DEBUG: Starting crossfade animation');
-
       // Start crossfade animation
       _fadeController.reset();
       _fadeController.forward().then((_) {
-        print('DEBUG: Crossfade animation completed');
         if (mounted) {
           setState(() {
             isTransitioning = false;
           });
-          print('DEBUG: isTransitioning set to false');
         }
       });
 
@@ -194,12 +188,9 @@ class _SlideshowViewState extends State<SlideshowView>
       Future.delayed(Duration(seconds: displayDuration - crossfadeDuration),
           () {
         if (mounted) {
-          print('DEBUG: Scheduling next slide');
           _nextSlide();
         }
       });
-    } else {
-      print('DEBUG: _changeSlide rejected: newIndex=$newIndex, isTransitioning=$isTransitioning');
     }
   }
 
@@ -222,13 +213,9 @@ class _SlideshowViewState extends State<SlideshowView>
         child: AnimatedBuilder(
           animation: _fadeController,
           builder: (context, child) {
-            // Debug: Log current animation values
+            // Calculate animation values
             final currentOpacity = isTransitioning ? _fadeAnimation.value : 1.0;
             final previousOpacity = isTransitioning ? 1.0 - _fadeAnimation.value : 0.0;
-            
-            print('DEBUG: isTransitioning=$isTransitioning, currentOpacity=$currentOpacity, previousOpacity=$previousOpacity');
-            print('DEBUG: currentIndex=$currentIndex, previousIndex=$previousIndex');
-            print('DEBUG: _fadeAnimation.value=${_fadeAnimation.value}');
 
             return Stack(
               children: [
@@ -259,8 +246,6 @@ class _SlideshowViewState extends State<SlideshowView>
 
     final imageName = widget.slideshowData[index]['image'] as String;
     final imagePath = path.join(widget.folderPath, imageName);
-
-    print('DEBUG: Building image layer for index=$index, opacity=$opacity, image=$imageName');
 
     return Positioned.fill(
       child: Opacity(
@@ -489,19 +474,6 @@ class _SlideshowViewState extends State<SlideshowView>
         final maxWidth = clampedFontSize * 4; // 最大幅
         final finalWidth = calculatedWidth.clamp(minWidth, maxWidth);
         
-        // デバッグ情報を出力
-        print('DEBUG: _buildCaption - windowWidth: $windowWidth');
-        print('DEBUG: _buildCaption - windowHeight: $windowHeight');
-        print('DEBUG: _buildCaption - fontSize: $fontSize');
-        print('DEBUG: _buildCaption - clampedFontSize: $clampedFontSize');
-        print('DEBUG: _buildCaption - space: $space');
-        print('DEBUG: _buildCaption - calculatedWidth: $calculatedWidth');
-        print('DEBUG: _buildCaption - finalWidth: $finalWidth');
-        print('DEBUG: _buildCaption - caption height: $captionHeight');
-        print('DEBUG: _buildCaption - constraints: $constraints');
-        print('DEBUG: _buildCaption - MediaQuery size: ${MediaQuery.of(context).size}');
-        
-        print('DEBUG: _buildCaption - Align right with Container');
         return Align(
           alignment: Alignment.centerRight,
           child: Container(
