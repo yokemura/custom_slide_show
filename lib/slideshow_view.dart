@@ -27,7 +27,6 @@ class _SlideshowViewState extends State<SlideshowView>
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
   late AnimationController _slideController;
-  late Animation<Offset> _slideAnimation;
 
   // Display settings
   static const int displayDuration = 5; // seconds
@@ -56,13 +55,6 @@ class _SlideshowViewState extends State<SlideshowView>
       vsync: this,
     );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(1.0, 0.0),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeInOut,
-    ));
 
     // Start slideshow
     _startSlideshow();
