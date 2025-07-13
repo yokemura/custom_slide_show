@@ -8,6 +8,17 @@ class Tategaki extends StatelessWidget {
 
   const Tategaki(this.text, {this.style, this.space = 4, super.key});
 
+  // テキストの幅を計算する静的メソッド
+  static double calculateWidth(String text, TextStyle style, double space, double height) {
+    final runes = text.runes.toList();
+    final fontSize = style.fontSize ?? 20;
+    final columnCount = (height / fontSize).floor();
+    final rowCount = (runes.length / columnCount).ceil();
+    
+    // 縦書きの場合、幅は行数 × (フォントサイズ + 文字間隔)
+    return rowCount * (fontSize + space);
+  }
+
   @override
   Widget build(BuildContext context) {
     final mergeStyle = DefaultTextStyle.of(context).style.merge(style);
