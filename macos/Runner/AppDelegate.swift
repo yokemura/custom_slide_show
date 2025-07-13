@@ -56,7 +56,7 @@ class AppDelegate: FlutterAppDelegate {
   @objc func openFolder(_ sender: Any) {
     print("openFolder method called from menu")
     pickFolder { result in
-      print("Menu folder picker result: \(result)")
+      print("Menu folder picker result: \(String(describing: result))")
     }
   }
   

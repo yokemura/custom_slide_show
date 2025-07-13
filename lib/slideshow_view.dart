@@ -28,6 +28,10 @@ class _SlideshowViewState extends State<SlideshowView>
   late Animation<double> _fadeAnimation;
   late AnimationController _slideController;
 
+  // キャプション関連の状態
+  String? currentCaption;
+  bool showCaption = false;
+
   // Display settings
   static const int displayDuration = 5; // seconds
   static const int crossfadeDuration = 1; // seconds
@@ -55,6 +59,8 @@ class _SlideshowViewState extends State<SlideshowView>
       vsync: this,
     );
 
+    // 初期キャプションを設定
+    _updateCaption();
 
     // Start slideshow
     _startSlideshow();
@@ -131,6 +137,31 @@ class _SlideshowViewState extends State<SlideshowView>
     });
   }
 
+  // キャプション更新メソッド
+  void _updateCaption() {
+    if (currentIndex < widget.slideshowData.length) {
+      final slideData = widget.slideshowData[currentIndex];
+      final text = slideData['text'] as String?;
+      
+      if (text == null) {
+        // textプロパティが存在しない場合は表示を継続
+        // 何もしない（現在のキャプションを維持）
+      } else if (text.isEmpty) {
+        // 空文字列の場合はキャプション表示を消去
+        setState(() {
+          currentCaption = null;
+          showCaption = false;
+        });
+      } else {
+        // 新しい文字列の場合はキャプション表示文字列を更新
+        setState(() {
+          currentCaption = text;
+          showCaption = true;
+        });
+      }
+    }
+  }
+
   void _changeSlide(int newIndex) {
     if (newIndex >= 0 && newIndex < widget.slideshowData.length && !isTransitioning) {
       print('DEBUG: _changeSlide called: currentIndex=$currentIndex -> newIndex=$newIndex');
@@ -140,6 +171,9 @@ class _SlideshowViewState extends State<SlideshowView>
         currentIndex = newIndex;
         isTransitioning = true;
       });
+
+      // キャプションを更新
+      _updateCaption();
 
       print('DEBUG: Starting crossfade animation');
 
@@ -202,6 +236,9 @@ class _SlideshowViewState extends State<SlideshowView>
 
                 // Current image (fading in)
                 _buildImageLayer(currentIndex, currentOpacity),
+
+                // キャプション表示
+                if (showCaption && currentCaption != null) _buildCaption(),
 
                 // Controls overlay
                 if (!isFullScreen) _buildControls(),
@@ -414,6 +451,37 @@ class _SlideshowViewState extends State<SlideshowView>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // キャプション表示ウィジェット
+  Widget _buildCaption() {
+    return Positioned(
+      right: 40,
+      top: 0,
+      bottom: 0,
+      child: Center(
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: RotatedBox(
+            quarterTurns: 1, // 90度回転して縦書きにする
+            child: Text(
+              currentCaption!,
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 20,
+                fontWeight: FontWeight.normal,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
       ),
     );
   }
