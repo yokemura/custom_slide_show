@@ -36,6 +36,30 @@ class _SlideshowViewState extends State<SlideshowView>
   // Display settings
   static const int displayDuration = 8; // seconds
   static const int crossfadeDuration = 2; // seconds
+  
+  // Keyboard handler reference
+  bool _keyboardHandler(KeyEvent event) {
+    if (event is KeyDownEvent) {
+      if (HardwareKeyboard.instance.isMetaPressed &&
+          event.logicalKey == LogicalKeyboardKey.keyF) {
+        _toggleFullScreen();
+        return true;
+      } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+        _exitFullScreen();
+        return true;
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+        _previousSlide();
+        return true;
+      } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+        _nextSlide();
+        return true;
+      } else if (event.logicalKey == LogicalKeyboardKey.space) {
+        _togglePlayPause();
+        return true;
+      }
+    }
+    return false;
+  }
 
   @override
   void initState() {
@@ -80,26 +104,12 @@ class _SlideshowViewState extends State<SlideshowView>
     _fadeController.dispose();
     _slideController.dispose();
     WidgetsBinding.instance.removeObserver(this);
+    HardwareKeyboard.instance.removeHandler(_keyboardHandler);
     super.dispose();
   }
 
   void _setupKeyboardShortcuts() {
-    RawKeyboard.instance.addListener((event) {
-      if (event is RawKeyDownEvent) {
-        if (event.isMetaPressed &&
-            event.logicalKey == LogicalKeyboardKey.keyF) {
-          _toggleFullScreen();
-        } else if (event.logicalKey == LogicalKeyboardKey.escape) {
-          _exitFullScreen();
-        } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-          _previousSlide();
-        } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-          _nextSlide();
-        } else if (event.logicalKey == LogicalKeyboardKey.space) {
-          _togglePlayPause();
-        }
-      }
-    });
+    HardwareKeyboard.instance.addHandler(_keyboardHandler);
   }
 
   void _setupFullScreenListener() {

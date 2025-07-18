@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'
-    show RawKeyboard, RawKeyDownEvent, LogicalKeyboardKey, MethodChannel;
+    show HardwareKeyboard, KeyDownEvent, LogicalKeyboardKey, MethodChannel;
 import 'package:file_picker/file_picker.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'dart:convert';
@@ -43,6 +43,18 @@ class _MyHomePageState extends State<MyHomePage> {
   bool isLoading = false;
   static const MethodChannel _channel =
       MethodChannel('custom_slide_show/file_picker');
+  
+  // Keyboard handler reference
+  bool _keyboardHandler(KeyEvent event) {
+    if (event is KeyDownEvent) {
+      if (HardwareKeyboard.instance.isMetaPressed &&
+          event.logicalKey == LogicalKeyboardKey.keyO) {
+        _openFolder();
+        return true;
+      }
+    }
+    return false;
+  }
 
   @override
   void initState() {
@@ -53,14 +65,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _setupKeyboardShortcuts() {
     // Listen for Cmd+O shortcut
-    RawKeyboard.instance.addListener((event) {
-      if (event is RawKeyDownEvent) {
-        if (event.isMetaPressed &&
-            event.logicalKey == LogicalKeyboardKey.keyO) {
-          _openFolder();
-        }
-      }
-    });
+    HardwareKeyboard.instance.addHandler(_keyboardHandler);
   }
 
 
@@ -90,14 +95,14 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _buildBody() {
     if (isLoading) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Processing folder...'),
-            ],
+          children: const [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Processing folder...'),
+          ],
         ),
       );
     }
