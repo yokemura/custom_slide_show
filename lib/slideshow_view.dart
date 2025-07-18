@@ -8,11 +8,13 @@ import 'tategaki.dart';
 class SlideshowView extends StatefulWidget {
   final String folderPath;
   final List<Map<String, dynamic>> slideshowData;
+  final int? startIndex;
 
   const SlideshowView({
     super.key,
     required this.folderPath,
     required this.slideshowData,
+    this.startIndex,
   });
 
   @override
@@ -83,6 +85,13 @@ class _SlideshowViewState extends State<SlideshowView>
       duration: const Duration(milliseconds: crossfadeDuration * 1000),
       vsync: this,
     );
+
+    // 指定されたインデックスから開始する場合
+    if (widget.startIndex != null && 
+        widget.startIndex! >= 0 && 
+        widget.startIndex! < widget.slideshowData.length) {
+      currentIndex = widget.startIndex!;
+    }
 
     // 初期キャプションを設定
     _updateCaption();

@@ -95,10 +95,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _buildBody() {
     if (isLoading) {
-      return Center(
+      return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
+          children: [
             CircularProgressIndicator(),
             SizedBox(height: 16),
             Text('Processing folder...'),
@@ -281,6 +281,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             color: Colors.blue,
                           ),
                         ),
+                        onTap: () => _startSlideshowFromIndex(index),
                       ),
                     );
                   },
@@ -381,6 +382,20 @@ class _MyHomePageState extends State<MyHomePage> {
           builder: (context) => SlideshowView(
             folderPath: selectedFolderPath!,
             slideshowData: slideshowData,
+          ),
+        ),
+      );
+    }
+  }
+
+  void _startSlideshowFromIndex(int startIndex) {
+    if (selectedFolderPath != null && slideshowData.isNotEmpty) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => SlideshowView(
+            folderPath: selectedFolderPath!,
+            slideshowData: slideshowData,
+            startIndex: startIndex,
           ),
         ),
       );
