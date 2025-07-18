@@ -93,11 +93,11 @@ class _MyHomePageState extends State<MyHomePage> {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Processing folder...'),
-          ],
+                      children: const [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Processing folder...'),
+            ],
         ),
       );
     }
@@ -105,33 +105,31 @@ class _MyHomePageState extends State<MyHomePage> {
     if (selectedFolderPath == null) {
       return DropTarget(
         onDragDone: (detail) async {
-          print('Flutter: Drop detected with ${detail.files.length} files');
           if (detail.files.isNotEmpty) {
             final file = detail.files.first;
             final filePath = file.path;
-            print('Flutter: Dropped file path: $filePath');
             
             // Check if it's a directory
             final directory = Directory(filePath);
             if (await directory.exists()) {
-              print('Flutter: Dropped item is a directory, processing...');
               await _processSelectedFolder(filePath);
             } else {
-              print('Flutter: Dropped item is not a directory');
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Please drop a folder, not a file'),
-                  backgroundColor: Colors.orange,
-                ),
-              );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please drop a folder, not a file'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+              }
             }
           }
         },
         onDragEntered: (detail) {
-          print('Flutter: Drag entered');
+          // Drag entered
         },
         onDragExited: (detail) {
-          print('Flutter: Drag exited');
+          // Drag exited
         },
         child: Center(
           child: Column(
@@ -148,15 +146,15 @@ class _MyHomePageState extends State<MyHomePage> {
                   borderRadius: BorderRadius.circular(16),
                   color: Colors.grey.withOpacity(0.05),
                 ),
-                child: Column(
+                child: const Column(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.folder_open,
                       size: 64,
                       color: Colors.grey,
                     ),
-                    const SizedBox(height: 16),
-                    const Text(
+                    SizedBox(height: 16),
+                    Text(
                       'No folder selected',
                       style: TextStyle(
                         fontSize: 18, 
@@ -164,8 +162,8 @@ class _MyHomePageState extends State<MyHomePage> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
+                    SizedBox(height: 8),
+                    Text(
                       'Drag and drop a folder with images here\nor click the button below',
                       textAlign: TextAlign.center,
                       style: TextStyle(
@@ -191,23 +189,23 @@ class _MyHomePageState extends State<MyHomePage> {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.image_not_supported,
-              size: 64,
-              color: Colors.grey,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No images found in: ${path.basename(selectedFolderPath!)}',
-              style: const TextStyle(fontSize: 18, color: Colors.grey),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Make sure the folder contains image files',
-              style: TextStyle(color: Colors.grey),
-            ),
-          ],
+                      children: [
+              const Icon(
+                Icons.image_not_supported,
+                size: 64,
+                color: Colors.grey,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No images found in: ${path.basename(selectedFolderPath!)}',
+                style: const TextStyle(fontSize: 18, color: Colors.grey),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Make sure the folder contains image files',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ],
         ),
       );
     }
@@ -291,43 +289,39 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _openFolder() async {
-    print('Flutter: _openFolder called');
     setState(() {
       isLoading = true;
     });
 
     try {
-      print('Flutter: Trying native folder picker...');
       String? result;
 
       try {
         result = await _channel.invokeMethod<String>('pickFolder');
-        print('Flutter: Native picker result: $result');
       } catch (e) {
-        print('Flutter: Native picker failed, trying file_picker: $e');
         result = await FilePicker.platform.getDirectoryPath(
           dialogTitle: 'Select a folder containing images for your slide show',
         );
-        print('Flutter: File picker result: $result');
       }
 
       if (result != null) {
         await _processSelectedFolder(result);
-      } else {
-        print('Flutter: No folder selected');
       }
     } catch (e) {
-      print('Flutter: Error opening folder: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error opening folder: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening folder: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -350,24 +344,28 @@ class _MyHomePageState extends State<MyHomePage> {
       final jsonString = await slideshowFile.readAsString();
       final data = json.decode(jsonString) as List;
 
-      setState(() {
-        selectedFolderPath = path.dirname(slideshowFile.path);
-        slideshowData = data.cast<Map<String, dynamic>>();
-      });
+      if (mounted) {
+        setState(() {
+          selectedFolderPath = path.dirname(slideshowFile.path);
+          slideshowData = data.cast<Map<String, dynamic>>();
+        });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Loaded existing slideshow.json'),
-          backgroundColor: Colors.green,
-        ),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Loaded existing slideshow.json'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error loading slideshow.json: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading slideshow.json: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -424,25 +422,29 @@ class _MyHomePageState extends State<MyHomePage> {
           const JsonEncoder.withIndent('  ').convert(slideshowData);
       await slideshowFile.writeAsString(jsonString);
 
-      setState(() {
-        selectedFolderPath = folderPath;
-        this.slideshowData = slideshowData;
-      });
+      if (mounted) {
+        setState(() {
+          selectedFolderPath = folderPath;
+          this.slideshowData = slideshowData;
+        });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content:
-              Text('Created slideshow.json with ${imageFiles.length} images'),
-          backgroundColor: Colors.green,
-        ),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text('Created slideshow.json with ${imageFiles.length} images'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error creating slideshow.json: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error creating slideshow.json: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 }

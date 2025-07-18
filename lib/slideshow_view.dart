@@ -20,7 +20,7 @@ class SlideshowView extends StatefulWidget {
 }
 
 class _SlideshowViewState extends State<SlideshowView>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   int currentIndex = 0;
   int previousIndex = 0;
   bool isFullScreen = false;
@@ -34,8 +34,8 @@ class _SlideshowViewState extends State<SlideshowView>
   bool showCaption = false;
 
   // Display settings
-  static const int displayDuration = 5; // seconds
-  static const int crossfadeDuration = 1; // seconds
+  static const int displayDuration = 8; // seconds
+  static const int crossfadeDuration = 2; // seconds
 
   @override
   void initState() {
@@ -43,7 +43,7 @@ class _SlideshowViewState extends State<SlideshowView>
 
     // Initialize animations
     _fadeController = AnimationController(
-      duration: Duration(milliseconds: crossfadeDuration * 1000),
+      duration: const Duration(milliseconds: crossfadeDuration * 1000),
       vsync: this,
     );
 
@@ -56,7 +56,7 @@ class _SlideshowViewState extends State<SlideshowView>
     ));
 
     _slideController = AnimationController(
-      duration: Duration(milliseconds: crossfadeDuration * 1000),
+      duration: const Duration(milliseconds: crossfadeDuration * 1000),
       vsync: this,
     );
 
@@ -68,6 +68,9 @@ class _SlideshowViewState extends State<SlideshowView>
 
     // Set up keyboard shortcuts
     _setupKeyboardShortcuts();
+
+    // フルスクリーン状態の監視を開始
+    _setupFullScreenListener();
   }
 
   @override
@@ -76,6 +79,7 @@ class _SlideshowViewState extends State<SlideshowView>
     _slideController.stop();
     _fadeController.dispose();
     _slideController.dispose();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
@@ -98,16 +102,54 @@ class _SlideshowViewState extends State<SlideshowView>
     });
   }
 
-  void _toggleFullScreen() {
-    setState(() {
-      isFullScreen = !isFullScreen;
-    });
+  void _setupFullScreenListener() {
+    // フルスクリーン状態の変更を監視
+    WidgetsBinding.instance.addObserver(this);
   }
 
-  void _exitFullScreen() {
-    setState(() {
-      isFullScreen = false;
-    });
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    // アプリが非アクティブになった場合、フルスクリーンを解除
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      if (isFullScreen) {
+        setState(() {
+          isFullScreen = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _toggleFullScreen() async {
+    if (isFullScreen) {
+      await _exitFullScreen();
+    } else {
+      await _enterFullScreen();
+    }
+  }
+
+  Future<void> _enterFullScreen() async {
+    try {
+      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
+      setState(() {
+        isFullScreen = true;
+      });
+    } catch (e) {
+      // Failed to enter fullscreen: $e
+    }
+  }
+
+  Future<void> _exitFullScreen() async {
+    try {
+      await SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, 
+        overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom]);
+      setState(() {
+        isFullScreen = false;
+      });
+    } catch (e) {
+      // Failed to exit fullscreen: $e
+    }
   }
 
   void _previousSlide() {
@@ -131,7 +173,7 @@ class _SlideshowViewState extends State<SlideshowView>
 
     _fadeController.forward();
 
-    Future.delayed(Duration(seconds: displayDuration - crossfadeDuration), () {
+    Future.delayed(const Duration(seconds: displayDuration - crossfadeDuration), () {
       if (mounted) {
         _nextSlide();
       }
@@ -185,7 +227,7 @@ class _SlideshowViewState extends State<SlideshowView>
       });
 
       // Schedule next slide
-      Future.delayed(Duration(seconds: displayDuration - crossfadeDuration),
+      Future.delayed(const Duration(seconds: displayDuration - crossfadeDuration),
           () {
         if (mounted) {
           _nextSlide();
@@ -282,92 +324,7 @@ class _SlideshowViewState extends State<SlideshowView>
     );
   }
 
-  Widget _buildCombinedImage() {
-    if (widget.slideshowData.isEmpty) return Container();
 
-    final imageName = widget.slideshowData[currentIndex]['image'] as String;
-    final imagePath = path.join(widget.folderPath, imageName);
-
-    return Positioned.fill(
-      child: FadeTransition(
-        opacity: _fadeAnimation,
-        child: Stack(
-          children: [
-            // Background blurred image
-            Positioned.fill(
-              child: ImageFiltered(
-                imageFilter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: Image.file(
-                  File(imagePath),
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
-              ),
-            ),
-
-            // Main image
-            Positioned.fill(
-              child: Center(
-                child: Image.file(
-                  File(imagePath),
-                  fit: BoxFit.contain,
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBackgroundImage() {
-    if (widget.slideshowData.isEmpty) return Container();
-
-    final imageName = widget.slideshowData[currentIndex]['image'] as String;
-    final imagePath = path.join(widget.folderPath, imageName);
-
-    return Positioned.fill(
-      child: FadeTransition(
-        opacity: _fadeAnimation,
-        child: ImageFiltered(
-          imageFilter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Image.file(
-            File(imagePath),
-            fit: BoxFit.cover,
-            width: double.infinity,
-            height: double.infinity,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMainImage() {
-    if (widget.slideshowData.isEmpty) return Container();
-
-    final imageName = widget.slideshowData[currentIndex]['image'] as String;
-    final imagePath = path.join(widget.folderPath, imageName);
-
-    return Positioned.fill(
-      child: FadeTransition(
-        opacity: _fadeAnimation,
-        child: Center(
-          child: AspectRatio(
-            aspectRatio: 16 / 9, // Adjust based on your needs
-            child: Image.file(
-              File(imagePath),
-              fit: BoxFit.contain,
-              width: double.infinity,
-              height: double.infinity,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildControls() {
     return Positioned(
