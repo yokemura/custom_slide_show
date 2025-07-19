@@ -1,17 +1,31 @@
 [
   {
-    "image": "0001.png"
+    "image": "0001.png",
+    "text": "最初の画像です",
+    "pan": "up",
+    "duration": 5.0,
+    "scale": 1.2
   },
   {
-    "image": "0002.jpg"
+    "image": "0002.jpg",
+    "text": "2番目の画像",
+    "pan": "down",
+    "duration": 3.0
   },
   {
-    "image": "0003.gif"
+    "image": "0003.gif",
+    "pan": "left",
+    "scale": 0.8
   },
   {
-    "image": "0004.bmp"
+    "image": "0004.bmp",
+    "text": "4番目の画像です",
+    "duration": 7.0
   },
   {
-    "image": "0005.tiff"
+    "image": "0005.tiff",
+    "pan": "right",
+    "scale": 1.5,
+    "duration": 4.0
   }
 ]

@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'slideshow_view.dart';
+import 'slide_item.dart';
 
 void main() {
   runApp(const MyApp());
@@ -39,7 +40,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   String? selectedFolderPath;
-  List<Map<String, dynamic>> slideshowData = [];
+  List<SlideItem> slideshowData = [];
   bool isLoading = false;
   static const MethodChannel _channel =
       MethodChannel('custom_slide_show/file_picker');
@@ -264,7 +265,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   itemCount: slideshowData.length,
                   itemBuilder: (context, index) {
                     final item = slideshowData[index];
-                    final imageName = item['image'] as String;
+                    final imageName = item.image;
 
                     return Card(
                       margin: const EdgeInsets.only(bottom: 8),
@@ -353,7 +354,9 @@ class _MyHomePageState extends State<MyHomePage> {
       if (mounted) {
         setState(() {
           selectedFolderPath = path.dirname(slideshowFile.path);
-          slideshowData = data.cast<Map<String, dynamic>>();
+          slideshowData = data
+              .map((item) => SlideItem.fromJson(item as Map<String, dynamic>))
+              .toList();
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -430,16 +433,14 @@ class _MyHomePageState extends State<MyHomePage> {
       // Sort files by name (ascending order as in Finder)
       imageFiles.sort();
 
-      // Create JSON structure
+      // Create SlideItem objects
       final slideshowData = imageFiles
-          .map((imageFile) => {
-                'image': imageFile,
-              })
+          .map((imageFile) => SlideItem(image: imageFile))
           .toList();
 
       // Convert to JSON with pretty formatting
-      final jsonString =
-          const JsonEncoder.withIndent('  ').convert(slideshowData);
+      final jsonString = const JsonEncoder.withIndent('  ').convert(
+          slideshowData.map((item) => item.toJson()).toList());
       await slideshowFile.writeAsString(jsonString);
 
       if (mounted) {

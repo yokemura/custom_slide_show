@@ -4,10 +4,11 @@ import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'dart:ui' as ui;
 import 'tategaki.dart';
+import 'slide_item.dart';
 
 class SlideshowView extends StatefulWidget {
   final String folderPath;
-  final List<Map<String, dynamic>> slideshowData;
+  final List<SlideItem> slideshowData;
   final int? startIndex;
 
   const SlideshowView({
@@ -203,7 +204,7 @@ class _SlideshowViewState extends State<SlideshowView>
   void _updateCaption() {
     if (currentIndex < widget.slideshowData.length) {
       final slideData = widget.slideshowData[currentIndex];
-      final text = slideData['text'] as String?;
+      final text = slideData.text;
       
       if (text == null) {
         // textプロパティが存在しない場合は表示を継続
@@ -305,7 +306,7 @@ class _SlideshowViewState extends State<SlideshowView>
   Widget _buildImageLayer(int index, double opacity) {
     if (index >= widget.slideshowData.length) return Container();
 
-    final imageName = widget.slideshowData[index]['image'] as String;
+    final imageName = widget.slideshowData[index].image;
     final imagePath = path.join(widget.folderPath, imageName);
 
     return Positioned.fill(
@@ -406,7 +407,7 @@ class _SlideshowViewState extends State<SlideshowView>
 
           // Image name
           Text(
-            widget.slideshowData[currentIndex]['image'] as String,
+            widget.slideshowData[currentIndex].image,
             style: const TextStyle(
               color: Colors.white70,
               fontSize: 14,
