@@ -31,6 +31,8 @@ class _SlideshowViewState extends State<SlideshowView>
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
   late AnimationController _slideController;
+  late AnimationController _panController;
+  Animation<Offset>? _panAnimation;
 
   // キャプション関連の状態
   String? currentCaption;
@@ -87,6 +89,11 @@ class _SlideshowViewState extends State<SlideshowView>
       vsync: this,
     );
 
+    _panController = AnimationController(
+      duration: const Duration(seconds: displayDuration),
+      vsync: this,
+    );
+
     // 指定されたインデックスから開始する場合
     if (widget.startIndex != null && 
         widget.startIndex! >= 0 && 
@@ -111,8 +118,10 @@ class _SlideshowViewState extends State<SlideshowView>
   void dispose() {
     _fadeController.stop();
     _slideController.stop();
+    _panController.stop();
     _fadeController.dispose();
     _slideController.dispose();
+    _panController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     HardwareKeyboard.instance.removeHandler(_keyboardHandler);
     super.dispose();
@@ -191,7 +200,12 @@ class _SlideshowViewState extends State<SlideshowView>
   void _startSlideshow() {
     if (widget.slideshowData.isEmpty) return;
 
-    _fadeController.forward();
+    // 最初のスライドではフェードアニメーション完了後にパンアニメーションを開始
+    _fadeController.forward().then((_) {
+      if (mounted) {
+        _startPanAnimation();
+      }
+    });
 
     // 現在のスライドのdurationを取得（デフォルトはdisplayDuration）
     final currentDuration = widget.slideshowData[currentIndex].duration ?? displayDuration;
@@ -201,6 +215,60 @@ class _SlideshowViewState extends State<SlideshowView>
         _nextSlide();
       }
     });
+  }
+
+  void _startPanAnimation() {
+    final slideData = widget.slideshowData[currentIndex];
+    final scale = slideData.scale ?? 1.0;
+    final pan = slideData.pan;
+    
+    // scaleが1より大きく、かつpanパラメータがある場合のみパンアニメーションを開始
+    if (scale > 1.0 && pan != null) {
+      final currentDuration = slideData.duration ?? displayDuration;
+      
+      // パンコントローラーの時間を現在のスライドの表示時間に設定
+      _panController.duration = Duration(seconds: currentDuration.round());
+      
+      // パン方向に応じてアニメーションを設定
+      // scale値に基づいてパン量を計算（scaleが大きいほどパン量も大きくなる）
+      final panAmount = (scale - 1.0) * 0.5; // scale=1.2なら0.1, scale=1.5なら0.25
+      
+      Offset beginOffset;
+      Offset endOffset;
+      
+      switch (pan) {
+        case PanDirection.up:
+          beginOffset = const Offset(0.0, 0.0);
+          endOffset = Offset(0.0, panAmount); // 画像が下に移動して上方向が見える
+          break;
+        case PanDirection.down:
+          beginOffset = const Offset(0.0, 0.0);
+          endOffset = Offset(0.0, -panAmount); // 画像が上に移動して下方向が見える
+          break;
+        case PanDirection.left:
+          beginOffset = const Offset(0.0, 0.0);
+          endOffset = Offset(panAmount, 0.0); // 画像が右に移動して左方向が見える
+          break;
+        case PanDirection.right:
+          beginOffset = const Offset(0.0, 0.0);
+          endOffset = Offset(-panAmount, 0.0); // 画像が左に移動して右方向が見える
+          break;
+      }
+      
+      _panAnimation = Tween<Offset>(
+        begin: beginOffset,
+        end: endOffset,
+      ).animate(CurvedAnimation(
+        parent: _panController,
+        curve: Curves.easeInOut,
+      ));
+      
+      _panController.reset();
+      _panController.forward();
+    } else {
+      // パンアニメーションが不要な場合はnullにリセット
+      _panAnimation = null;
+    }
   }
 
   // キャプション更新メソッド
@@ -246,6 +314,9 @@ class _SlideshowViewState extends State<SlideshowView>
           setState(() {
             isTransitioning = false;
           });
+          
+          // フェードアニメーション完了後にパンアニメーションを開始
+          _startPanAnimation();
         }
       });
 
@@ -279,7 +350,7 @@ class _SlideshowViewState extends State<SlideshowView>
           }
         },
         child: AnimatedBuilder(
-          animation: _fadeController,
+          animation: Listenable.merge([_fadeController, _panController]),
           builder: (context, child) {
             // Calculate animation values
             final currentOpacity = isTransitioning ? _fadeAnimation.value : 1.0;
@@ -315,41 +386,92 @@ class _SlideshowViewState extends State<SlideshowView>
     final imageName = widget.slideshowData[index].image;
     final imagePath = path.join(widget.folderPath, imageName);
     final scale = widget.slideshowData[index].scale ?? 1.0;
+    final pan = widget.slideshowData[index].pan;
+
+    // パンアニメーションを適用するかどうかを判定
+    final shouldPan = scale > 1.0 && pan != null && (index == currentIndex || index == previousIndex);
+
+    Widget imageWidget = Transform.scale(
+      scale: scale,
+      child: Stack(
+        children: [
+          // Background blurred image
+          Positioned.fill(
+            child: ImageFiltered(
+              imageFilter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: Image.file(
+                File(imagePath),
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+              ),
+            ),
+          ),
+
+          // Main image
+          Positioned.fill(
+            child: Center(
+              child: Image.file(
+                File(imagePath),
+                fit: BoxFit.contain,
+                width: double.infinity,
+                height: double.infinity,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    // パンアニメーションを適用
+    if (shouldPan) {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final windowSize = MediaQuery.of(context).size;
+          Offset panOffset;
+          if (index == currentIndex) {
+            panOffset = _panAnimation?.value ?? const Offset(0.0, 0.0);
+          } else {
+            // previousIndexの場合はパンの終了位置
+            final panAmount = (scale - 1.0) * 0.5;
+            switch (pan) {
+              case PanDirection.up:
+                panOffset = Offset(0.0, panAmount);
+                break;
+              case PanDirection.down:
+                panOffset = Offset(0.0, -panAmount);
+                break;
+              case PanDirection.left:
+                panOffset = Offset(panAmount, 0.0);
+                break;
+              case PanDirection.right:
+                panOffset = Offset(-panAmount, 0.0);
+                break;
+              default:
+                panOffset = const Offset(0.0, 0.0);
+            }
+          }
+
+          final pixelOffset = Offset(
+            panOffset.dx * windowSize.width,
+            panOffset.dy * windowSize.height,
+          );
+
+          return Transform.translate(
+            offset: pixelOffset,
+            child: Opacity(
+              opacity: opacity,
+              child: imageWidget,
+            ),
+          );
+        },
+      );
+    }
 
     return Positioned.fill(
       child: Opacity(
         opacity: opacity,
-        child: Transform.scale(
-          scale: scale,
-          child: Stack(
-            children: [
-              // Background blurred image
-              Positioned.fill(
-                child: ImageFiltered(
-                  imageFilter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                  child: Image.file(
-                    File(imagePath),
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
-                  ),
-                ),
-              ),
-
-              // Main image
-              Positioned.fill(
-                child: Center(
-                  child: Image.file(
-                    File(imagePath),
-                    fit: BoxFit.contain,
-                    width: double.infinity,
-                    height: double.infinity,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+        child: imageWidget,
       ),
     );
   }

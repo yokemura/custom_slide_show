@@ -2,7 +2,7 @@
   {
     "image": "0001.png",
     "text": "最初の画像です",
-    "pan": "up",
+    "pan": "down",
     "duration": 5.0,
     "scale": 1.2
   },
