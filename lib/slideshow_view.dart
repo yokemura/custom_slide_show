@@ -193,7 +193,10 @@ class _SlideshowViewState extends State<SlideshowView>
 
     _fadeController.forward();
 
-    Future.delayed(const Duration(seconds: displayDuration - crossfadeDuration), () {
+    // 現在のスライドのdurationを取得（デフォルトはdisplayDuration）
+    final currentDuration = widget.slideshowData[currentIndex].duration ?? displayDuration;
+    
+    Future.delayed(Duration(seconds: (currentDuration - crossfadeDuration).round()), () {
       if (mounted) {
         _nextSlide();
       }
@@ -247,7 +250,10 @@ class _SlideshowViewState extends State<SlideshowView>
       });
 
       // Schedule next slide
-      Future.delayed(const Duration(seconds: displayDuration - crossfadeDuration),
+      // 現在のスライドのdurationを取得（デフォルトはdisplayDuration）
+      final currentDuration = widget.slideshowData[newIndex].duration ?? displayDuration;
+      
+      Future.delayed(Duration(seconds: (currentDuration - crossfadeDuration).round()),
           () {
         if (mounted) {
           _nextSlide();
@@ -308,37 +314,41 @@ class _SlideshowViewState extends State<SlideshowView>
 
     final imageName = widget.slideshowData[index].image;
     final imagePath = path.join(widget.folderPath, imageName);
+    final scale = widget.slideshowData[index].scale ?? 1.0;
 
     return Positioned.fill(
       child: Opacity(
         opacity: opacity,
-        child: Stack(
-          children: [
-            // Background blurred image
-            Positioned.fill(
-              child: ImageFiltered(
-                imageFilter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: Image.file(
-                  File(imagePath),
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
+        child: Transform.scale(
+          scale: scale,
+          child: Stack(
+            children: [
+              // Background blurred image
+              Positioned.fill(
+                child: ImageFiltered(
+                  imageFilter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                  child: Image.file(
+                    File(imagePath),
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                  ),
                 ),
               ),
-            ),
 
-            // Main image
-            Positioned.fill(
-              child: Center(
-                child: Image.file(
-                  File(imagePath),
-                  fit: BoxFit.contain,
-                  width: double.infinity,
-                  height: double.infinity,
+              // Main image
+              Positioned.fill(
+                child: Center(
+                  child: Image.file(
+                    File(imagePath),
+                    fit: BoxFit.contain,
+                    width: double.infinity,
+                    height: double.infinity,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
