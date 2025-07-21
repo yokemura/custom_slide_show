@@ -105,7 +105,7 @@ class _SlideshowViewState extends State<SlideshowView>
     _updateCaption();
 
     // Start slideshow
-    _startSlideshow();
+    _runSlideshow(widget.startIndex ?? 0);
 
     // Set up keyboard shortcuts
     _setupKeyboardShortcuts();
@@ -183,13 +183,13 @@ class _SlideshowViewState extends State<SlideshowView>
 
   void _previousSlide() {
     if (currentIndex > 0) {
-      _changeSlide(currentIndex - 1);
+      _runSlideshow(currentIndex - 1);
     }
   }
 
   void _nextSlide() {
     if (currentIndex < widget.slideshowData.length - 1) {
-      _changeSlide(currentIndex + 1);
+      _runSlideshow(currentIndex + 1);
     }
   }
 
@@ -197,24 +197,62 @@ class _SlideshowViewState extends State<SlideshowView>
     // TODO: Implement play/pause functionality
   }
 
-  void _startSlideshow() {
+  /// スライド表示のアニメーションを指示し、その完了を待つメソッド
+  void _runSlideshow([int? slideIndex]) async {
     if (widget.slideshowData.isEmpty) return;
 
-    // 最初のスライドではフェードアニメーション完了後にパンアニメーションを開始
-    _fadeController.forward().then((_) {
-      if (mounted) {
-        _startPanAnimation();
-      }
-    });
-
-    // 現在のスライドのdurationを取得（デフォルトはdisplayDuration）
-    final currentDuration = widget.slideshowData[currentIndex].duration ?? displayDuration;
+    // インデックスが指定されていない場合は現在のインデックスを使用
+    final targetIndex = slideIndex ?? currentIndex;
     
-    Future.delayed(Duration(seconds: (currentDuration - crossfadeDuration).round()), () {
-      if (mounted) {
-        _nextSlide();
+    // 1. 初期状態を確実に設定（最初の呼び出し時のみ）
+    if (isTransitioning) {
+      setState(() {
+        isTransitioning = false;
+      });
+    }
+
+    // 2. 現在のスライドのパンアニメーション開始
+    _startPanAnimation();
+
+    // 3. スライド表示時間待機
+    final currentDuration = widget.slideshowData[targetIndex].duration ?? displayDuration;
+    await Future.delayed(Duration(seconds: (currentDuration - crossfadeDuration).round()));
+    
+    if (mounted) {
+      final nextIndex = targetIndex + 1;
+      
+      // 最後のスライドの場合は最初に戻る（ループ）
+      if (nextIndex >= widget.slideshowData.length) {
+        _runSlideshow(0); // 最初のスライドから再開
+        return;
       }
-    });
+
+      // 4. トランジション開始（State更新）
+      setState(() {
+        previousIndex = targetIndex;
+        currentIndex = nextIndex;
+        isTransitioning = true;
+      });
+
+      // 5. キャプション更新
+      _updateCaption();
+
+      // 6. フェードアニメーション指示・完了待機
+      await _executeFadeAnimation();
+
+      // 7. トランジション完了（State更新）
+      if (mounted) {
+        setState(() {
+          isTransitioning = false;
+        });
+
+        // 8. 次のスライドのパンアニメーション開始
+        _startPanAnimation();
+
+        // 9. 再帰的に次のスライドをスケジュール
+        _runSlideshow(nextIndex);
+      }
+    }
   }
 
   void _startPanAnimation() {
@@ -296,41 +334,10 @@ class _SlideshowViewState extends State<SlideshowView>
     }
   }
 
-  void _changeSlide(int newIndex) {
-    if (newIndex >= 0 && newIndex < widget.slideshowData.length && !isTransitioning) {
-      setState(() {
-        previousIndex = currentIndex;
-        currentIndex = newIndex;
-        isTransitioning = true;
-      });
-
-      // キャプションを更新
-      _updateCaption();
-
-      // Start crossfade animation
-      _fadeController.reset();
-      _fadeController.forward().then((_) {
-        if (mounted) {
-          setState(() {
-            isTransitioning = false;
-          });
-          
-          // フェードアニメーション完了後にパンアニメーションを開始
-          _startPanAnimation();
-        }
-      });
-
-      // Schedule next slide
-      // 現在のスライドのdurationを取得（デフォルトはdisplayDuration）
-      final currentDuration = widget.slideshowData[newIndex].duration ?? displayDuration;
-      
-      Future.delayed(Duration(seconds: (currentDuration - crossfadeDuration).round()),
-          () {
-        if (mounted) {
-          _nextSlide();
-        }
-      });
-    }
+  /// フェードアニメーションのみを実行するメソッド
+  Future<void> _executeFadeAnimation() async {
+    _fadeController.reset();
+    await _fadeController.forward();
   }
 
   @override
@@ -359,10 +366,17 @@ class _SlideshowViewState extends State<SlideshowView>
             return Stack(
               children: [
                 // Previous image (fading out)
-                if (isTransitioning) _buildImageLayer(previousIndex, previousOpacity),
+                if (isTransitioning) 
+                  Opacity(
+                    opacity: previousOpacity,
+                    child: _buildSlideLayer(previousIndex),
+                  ),
 
                 // Current image (fading in)
-                _buildImageLayer(currentIndex, currentOpacity),
+                Opacity(
+                  opacity: currentOpacity,
+                  child: _buildSlideLayer(currentIndex),
+                ),
 
                 // キャプション表示
                 if (showCaption && currentCaption != null) _buildCaption(),
@@ -380,7 +394,8 @@ class _SlideshowViewState extends State<SlideshowView>
     );
   }
 
-  Widget _buildImageLayer(int index, double opacity) {
+  /// フェードなしでスライドを表示するメソッド（パンアニメーション含む）
+  Widget _buildSlideLayer(int index) {
     if (index >= widget.slideshowData.length) return Container();
 
     final imageName = widget.slideshowData[index].image;
@@ -459,20 +474,14 @@ class _SlideshowViewState extends State<SlideshowView>
 
           return Transform.translate(
             offset: pixelOffset,
-            child: Opacity(
-              opacity: opacity,
-              child: imageWidget,
-            ),
+            child: imageWidget,
           );
         },
       );
     }
 
     return Positioned.fill(
-      child: Opacity(
-        opacity: opacity,
-        child: imageWidget,
-      ),
+      child: imageWidget,
     );
   }
 
