@@ -268,28 +268,36 @@ class _SlideshowViewState extends State<SlideshowView>
       _panController.duration = Duration(seconds: currentDuration.round());
       
       // パン方向に応じてアニメーションを設定
-      // scale値に基づいてパン量を計算（scaleが大きいほどパン量も大きくなる）
-      final panAmount = (scale - 1.0) * 0.5; // scale=1.2なら0.1, scale=1.5なら0.25
+      // scale値に基づいてパン量を計算（画像の端から端まで表示されるように）
+      final panAmount = (scale - 1.0); // scale=1.2なら0.2, scale=1.5なら0.5
       
       Offset beginOffset;
       Offset endOffset;
       
       switch (pan) {
         case PanDirection.up:
-          beginOffset = const Offset(0.0, 0.0);
-          endOffset = Offset(0.0, panAmount); // 画像が下に移動して上方向が見える
+          // 開始時：画像の下端が画面の下端に一致
+          // 終了時：画像の上端が画面の上端に一致
+          beginOffset = Offset(0.0, -panAmount * 0.5);
+          endOffset = Offset(0.0, panAmount * 0.5);
           break;
         case PanDirection.down:
-          beginOffset = const Offset(0.0, 0.0);
-          endOffset = Offset(0.0, -panAmount); // 画像が上に移動して下方向が見える
+          // 開始時：画像の上端が画面の上端に一致
+          // 終了時：画像の下端が画面の下端に一致
+          beginOffset = Offset(0.0, panAmount * 0.5);
+          endOffset = Offset(0.0, -panAmount * 0.5);
           break;
         case PanDirection.left:
-          beginOffset = const Offset(0.0, 0.0);
-          endOffset = Offset(panAmount, 0.0); // 画像が右に移動して左方向が見える
+          // 開始時：画像の右端が画面の右端に一致
+          // 終了時：画像の左端が画面の左端に一致
+          beginOffset = Offset(-panAmount * 0.5, 0.0);
+          endOffset = Offset(panAmount * 0.5, 0.0);
           break;
         case PanDirection.right:
-          beginOffset = const Offset(0.0, 0.0);
-          endOffset = Offset(-panAmount, 0.0); // 画像が左に移動して右方向が見える
+          // 開始時：画像の左端が画面の左端に一致
+          // 終了時：画像の右端が画面の右端に一致
+          beginOffset = Offset(panAmount * 0.5, 0.0);
+          endOffset = Offset(-panAmount * 0.5, 0.0);
           break;
       }
       
@@ -448,19 +456,19 @@ class _SlideshowViewState extends State<SlideshowView>
             panOffset = _panAnimation?.value ?? const Offset(0.0, 0.0);
           } else {
             // previousIndexの場合はパンの終了位置
-            final panAmount = (scale - 1.0) * 0.5;
+            final panAmount = (scale - 1.0);
             switch (pan) {
               case PanDirection.up:
-                panOffset = Offset(0.0, panAmount);
+                panOffset = Offset(0.0, panAmount * 0.5);
                 break;
               case PanDirection.down:
-                panOffset = Offset(0.0, -panAmount);
+                panOffset = Offset(0.0, -panAmount * 0.5);
                 break;
               case PanDirection.left:
-                panOffset = Offset(panAmount, 0.0);
+                panOffset = Offset(panAmount * 0.5, 0.0);
                 break;
               case PanDirection.right:
-                panOffset = Offset(-panAmount, 0.0);
+                panOffset = Offset(-panAmount * 0.5, 0.0);
                 break;
               default:
                 panOffset = const Offset(0.0, 0.0);
