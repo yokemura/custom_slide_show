@@ -453,7 +453,30 @@ class _SlideshowViewState extends State<SlideshowView>
           final windowSize = MediaQuery.of(context).size;
           Offset panOffset;
           if (index == currentIndex) {
-            panOffset = _panAnimation?.value ?? const Offset(0.0, 0.0);
+            // 現在のスライドの場合は、フェードアニメーション中は初期位置、そうでなければアニメーションの現在値を使用
+            if (isTransitioning) {
+              // フェードアニメーション中は次のスライドのパンアニメーションの初期位置を使用
+              final panAmount = (scale - 1.0);
+              switch (pan) {
+                case PanDirection.up:
+                  panOffset = Offset(0.0, -panAmount * 0.5);
+                  break;
+                case PanDirection.down:
+                  panOffset = Offset(0.0, panAmount * 0.5);
+                  break;
+                case PanDirection.left:
+                  panOffset = Offset(-panAmount * 0.5, 0.0);
+                  break;
+                case PanDirection.right:
+                  panOffset = Offset(panAmount * 0.5, 0.0);
+                  break;
+                default:
+                  panOffset = const Offset(0.0, 0.0);
+              }
+            } else {
+              // フェードアニメーション終了後はアニメーションの現在値を使用
+              panOffset = _panAnimation?.value ?? const Offset(0.0, 0.0);
+            }
           } else {
             // previousIndexの場合はパンの終了位置
             final panAmount = (scale - 1.0);
