@@ -11,6 +11,8 @@ class SlideItem {
   final PanDirection? pan;
   final double? duration;
   final double? scale;
+  final double? xoffset;
+  final double? yoffset;
 
   const SlideItem({
     required this.image,
@@ -18,6 +20,8 @@ class SlideItem {
     this.pan,
     this.duration,
     this.scale,
+    this.xoffset,
+    this.yoffset,
   });
 
   factory SlideItem.fromJson(Map<String, dynamic> json) {
@@ -27,6 +31,8 @@ class SlideItem {
       pan: json['pan'] != null ? _parsePanDirection(json['pan'] as String) : null,
       duration: json['duration'] != null ? (json['duration'] as num).toDouble() : null,
       scale: json['scale'] != null ? (json['scale'] as num).toDouble() : null,
+      xoffset: json['xoffset'] != null ? (json['xoffset'] as num).toDouble() : null,
+      yoffset: json['yoffset'] != null ? (json['yoffset'] as num).toDouble() : null,
     );
   }
 
@@ -37,6 +43,8 @@ class SlideItem {
       if (pan != null) 'pan': pan!.name,
       if (duration != null) 'duration': duration,
       if (scale != null) 'scale': scale,
+      if (xoffset != null) 'xoffset': xoffset,
+      if (yoffset != null) 'yoffset': yoffset,
     };
   }
 
@@ -61,6 +69,8 @@ class SlideItem {
     PanDirection? pan,
     double? duration,
     double? scale,
+    double? xoffset,
+    double? yoffset,
   }) {
     return SlideItem(
       image: image ?? this.image,
@@ -68,12 +78,14 @@ class SlideItem {
       pan: pan ?? this.pan,
       duration: duration ?? this.duration,
       scale: scale ?? this.scale,
+      xoffset: xoffset ?? this.xoffset,
+      yoffset: yoffset ?? this.yoffset,
     );
   }
 
   @override
   String toString() {
-    return 'SlideItem(image: $image, text: $text, pan: $pan, duration: $duration, scale: $scale)';
+    return 'SlideItem(image: $image, text: $text, pan: $pan, duration: $duration, scale: $scale, xoffset: $xoffset, yoffset: $yoffset)';
   }
 
   @override
@@ -84,11 +96,13 @@ class SlideItem {
         other.text == text &&
         other.pan == pan &&
         other.duration == duration &&
-        other.scale == scale;
+        other.scale == scale &&
+        other.xoffset == xoffset &&
+        other.yoffset == yoffset;
   }
 
   @override
   int get hashCode {
-    return Object.hash(image, text, pan, duration, scale);
+    return Object.hash(image, text, pan, duration, scale, xoffset, yoffset);
   }
 } 
