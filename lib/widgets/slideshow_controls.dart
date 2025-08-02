@@ -8,6 +8,8 @@ class SlideshowControls extends StatelessWidget {
   final int currentIndex;
   final int totalSlides;
   final SlideItem currentSlide;
+  final bool isPaused;
+  final VoidCallback onTogglePlayPause;
 
   const SlideshowControls({
     super.key,
@@ -17,6 +19,8 @@ class SlideshowControls extends StatelessWidget {
     required this.currentIndex,
     required this.totalSlides,
     required this.currentSlide,
+    required this.isPaused,
+    required this.onTogglePlayPause,
   });
 
   @override
@@ -41,6 +45,18 @@ class SlideshowControls extends StatelessWidget {
           IconButton(
             onPressed: onBack,
             icon: const Icon(Icons.arrow_back, color: Colors.white),
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.black54,
+            ),
+          ),
+
+          // Play/Pause button
+          IconButton(
+            onPressed: onTogglePlayPause,
+            icon: Icon(
+              isPaused ? Icons.play_arrow : Icons.pause,
+              color: Colors.white,
+            ),
             style: IconButton.styleFrom(
               backgroundColor: Colors.black54,
             ),

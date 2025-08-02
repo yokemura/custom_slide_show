@@ -91,8 +91,12 @@ class SlideshowAnimations {
         curve: Curves.easeInOut,
       ));
       
-      panController.reset();
-      panController.forward();
+      try {
+        panController.reset();
+        panController.forward();
+      } catch (e) {
+        // コントローラーが既にdisposeされている場合は無視
+      }
     } else if (xoffset != 0.0 || yoffset != 0.0) {
       // パンアニメーションがない場合でも、xoffset/yoffsetがある場合は固定オフセットを設定
       final offset = Offset(xoffset, yoffset);
@@ -150,7 +154,11 @@ class SlideshowAnimations {
       ));
       
       // アニメーションは開始せず、初期状態のみ設定
-      panController.reset();
+      try {
+        panController.reset();
+      } catch (e) {
+        // コントローラーが既にdisposeされている場合は無視
+      }
     } else if (xoffset != 0.0 || yoffset != 0.0) {
       // パンアニメーションがない場合でも、xoffset/yoffsetがある場合は固定オフセットを設定
       final offset = Offset(xoffset, yoffset);
@@ -163,8 +171,30 @@ class SlideshowAnimations {
   }
 
   Future<void> executeFadeAnimation() async {
-    fadeController.reset();
-    await fadeController.forward();
+    try {
+      fadeController.reset();
+      await fadeController.forward();
+    } catch (e) {
+      // コントローラーが既にdisposeされている場合は無視
+    }
+  }
+
+  void stopAnimations() {
+    try {
+      fadeController.stop();
+    } catch (e) {
+      // コントローラーが既にdisposeされている場合は無視
+    }
+    try {
+      slideController.stop();
+    } catch (e) {
+      // コントローラーが既にdisposeされている場合は無視
+    }
+    try {
+      panController.stop();
+    } catch (e) {
+      // コントローラーが既にdisposeされている場合は無視
+    }
   }
 
   Offset? getPanOffset(SlideItem slideData, bool isTransitioning, bool isCurrentSlide) {

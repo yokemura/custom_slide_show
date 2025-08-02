@@ -8,6 +8,7 @@ import 'controllers/slideshow_controller.dart';
 import 'widgets/slide_layer.dart';
 import 'widgets/slideshow_controls.dart';
 import 'widgets/caption_display.dart';
+import 'slideshow_settings_screen.dart';
 
 class SlideshowView extends StatefulWidget {
   final String folderPath;
@@ -48,8 +49,16 @@ class _SlideshowViewState extends State<SlideshowView>
     _slideshowController = SlideshowController(
       slideshowData: widget.slideshowData,
       animations: _animations,
-      onStateChanged: () => setState(() {}),
-      onCaptionChanged: () => setState(() {}),
+      onStateChanged: () {
+        if (mounted) {
+          setState(() {});
+        }
+      },
+      onCaptionChanged: () {
+        if (mounted) {
+          setState(() {});
+        }
+      },
     );
 
     // Initialize keyboard controller
@@ -59,6 +68,7 @@ class _SlideshowViewState extends State<SlideshowView>
       onPreviousSlide: _slideshowController.goToPreviousSlide,
       onNextSlide: _slideshowController.goToNextSlide,
       onTogglePlayPause: _slideshowController.togglePlayPause,
+      onOpenSettings: _openSettings,
     );
 
     // Initialize slideshow
@@ -80,6 +90,29 @@ class _SlideshowViewState extends State<SlideshowView>
     _keyboardController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _openSettings() async {
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => SlideshowSettingsScreen(
+          folderPath: widget.folderPath,
+          slideshowData: widget.slideshowData,
+          currentSlideIndex: _slideshowController.currentIndex,
+        ),
+      ),
+    );
+
+    if (result != null && result is Map<String, dynamic>) {
+      final updatedSlideshowData = result['slideshowData'] as List<SlideItem>;
+      final currentSlideIndex = result['currentSlideIndex'] as int;
+      
+      // スライドショーコントローラーを更新
+      _slideshowController.updateSlideshowData(updatedSlideshowData);
+      
+      // 現在のスライドインデックスに移動
+      _slideshowController.goToSlide(currentSlideIndex);
+    }
   }
 
   @override
@@ -152,6 +185,41 @@ class _SlideshowViewState extends State<SlideshowView>
                     caption: _slideshowController.currentCaption!,
                   ),
 
+                // 一時停止中のオーバーレイ
+                if (_slideshowController.isPaused)
+                  Container(
+                    color: Colors.black.withOpacity(0.3),
+                    child: const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.pause_circle_filled,
+                            color: Colors.white,
+                            size: 64,
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            '一時停止中',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'スペースキーまたは再生ボタンで再開',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
                 // Controls overlay
                 if (!_fullscreenController.isFullScreen) 
                   SlideshowControls(
@@ -161,6 +229,8 @@ class _SlideshowViewState extends State<SlideshowView>
                     currentIndex: _slideshowController.currentIndex,
                     totalSlides: _slideshowController.totalSlides,
                     currentSlide: _slideshowController.currentSlide,
+                    isPaused: _slideshowController.isPaused,
+                    onTogglePlayPause: _slideshowController.togglePlayPause,
                   ),
               ],
             );

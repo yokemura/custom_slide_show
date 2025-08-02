@@ -29,38 +29,44 @@ class SlideLayer extends StatelessWidget {
 
     final shouldPan = scale > 1.0 && pan != null && (isCurrentSlide || !isCurrentSlide);
 
-    Widget imageWidget = Transform.scale(
-      scale: scale,
-      child: Stack(
-        children: [
-          // Background blurred image
-          Positioned.fill(
-            child: ImageFiltered(
-              imageFilter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: Image.file(
-                File(imagePath),
-                fit: BoxFit.cover,
-                width: double.infinity,
-                height: double.infinity,
-              ),
+    Widget imageWidget = Stack(
+      children: [
+        // Background blurred image
+        Positioned.fill(
+          child: ImageFiltered(
+            imageFilter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: Image.file(
+              File(imagePath),
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
             ),
           ),
+        ),
 
-          // Main image
-          Positioned.fill(
-            child: Center(
-              child: Image.file(
-                File(imagePath),
-                fit: BoxFit.contain,
-                width: double.infinity,
-                height: double.infinity,
-              ),
+        // Main image
+        Positioned.fill(
+          child: Center(
+            child: Image.file(
+              File(imagePath),
+              fit: BoxFit.contain,
+              width: double.infinity,
+              height: double.infinity,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
 
+    // Apply scale transformation
+    if (scale != 1.0) {
+      imageWidget = Transform.scale(
+        scale: scale,
+        child: imageWidget,
+      );
+    }
+
+    // Apply pan transformation
     if (shouldPan) {
       return LayoutBuilder(
         builder: (context, constraints) {
@@ -79,11 +85,11 @@ class SlideLayer extends StatelessWidget {
             );
           }
 
-          return Positioned.fill(child: imageWidget);
+          return imageWidget;
         },
       );
     }
 
-    return Positioned.fill(child: imageWidget);
+    return imageWidget;
   }
 } 

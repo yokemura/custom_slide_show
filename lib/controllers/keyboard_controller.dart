@@ -7,6 +7,7 @@ class KeyboardController {
   final VoidCallback onPreviousSlide;
   final VoidCallback onNextSlide;
   final VoidCallback onTogglePlayPause;
+  final VoidCallback? onOpenSettings;
 
   KeyboardController({
     required this.onToggleFullScreen,
@@ -14,6 +15,7 @@ class KeyboardController {
     required this.onPreviousSlide,
     required this.onNextSlide,
     required this.onTogglePlayPause,
+    this.onOpenSettings,
   });
 
   bool handleKeyEvent(KeyEvent event) {
@@ -33,6 +35,9 @@ class KeyboardController {
         return true;
       } else if (event.logicalKey == LogicalKeyboardKey.space) {
         onTogglePlayPause();
+        return true;
+      } else if (event.logicalKey == LogicalKeyboardKey.enter && onOpenSettings != null) {
+        onOpenSettings!();
         return true;
       }
     }
