@@ -3,14 +3,20 @@ import 'package:flutter/services.dart'
     show HardwareKeyboard, KeyDownEvent, LogicalKeyboardKey, MethodChannel;
 import 'package:file_picker/file_picker.dart';
 import 'package:desktop_drop/desktop_drop.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'slideshow_view.dart';
+import 'slideshow_view_hooks.dart';
 import 'slide_item.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    const ProviderScope(
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -382,7 +388,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if (selectedFolderPath != null && slideshowData.isNotEmpty) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => SlideshowView(
+          builder: (context) => SlideshowViewHooks(
             folderPath: selectedFolderPath!,
             slideshowData: slideshowData,
           ),
@@ -395,7 +401,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if (selectedFolderPath != null && slideshowData.isNotEmpty) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => SlideshowView(
+          builder: (context) => SlideshowViewHooks(
             folderPath: selectedFolderPath!,
             slideshowData: slideshowData,
             startIndex: startIndex,
