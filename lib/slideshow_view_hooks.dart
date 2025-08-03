@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'dart:ui' as ui;
 import 'slide_item.dart';
 import 'providers/slideshow_provider.dart';
 import 'providers/animation_provider.dart';
+
+// 定数定義
+const double _defaultSlideDuration = 8.0; // デフォルトのスライド表示時間（秒）
+const double _fadeAnimationDuration = 1.0; // フェードアニメーション時間（秒）
 
 class SlideshowViewHooks extends HookConsumerWidget {
   final String folderPath;
@@ -35,10 +40,14 @@ class SlideshowViewHooks extends HookConsumerWidget {
 
     // アニメーションコントローラー
     final panController = useAnimationController(
-      duration: const Duration(milliseconds: 3000), // 固定のデフォルト値
+      duration: Duration(
+        milliseconds: ((slideshowState.currentSlide?.duration ?? _defaultSlideDuration) * 1000).round(),
+      ),
     );
     final fadeController = useAnimationController(
-      duration: const Duration(milliseconds: 500),
+      duration: Duration(
+        milliseconds: (_fadeAnimationDuration * 1000).round(),
+      ),
     );
 
     // アニメーション
@@ -63,6 +72,12 @@ class SlideshowViewHooks extends HookConsumerWidget {
     // スライド切り替えの処理
     useEffect(() {
       if (slideshowState.currentSlide != null && slideshowState.slideshowData.isNotEmpty) {
+        // アニメーションコントローラーのdurationを更新
+        final newDuration = Duration(
+          milliseconds: ((slideshowState.currentSlide!.duration ?? _defaultSlideDuration) * 1000).round(),
+        );
+        panController.duration = newDuration;
+        
         // パンアニメーション開始
         panController.forward().then((_) {
           // パンアニメーション完了後、次のスライドがある場合はフェードアニメーション開始
@@ -194,32 +209,65 @@ class _SlideLayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scale = slideData.scale ?? 1.0;
+    final imagePath = '$folderPath/${slideData.image}';
     
     return SizedBox(
       width: screenSize.width,
       height: screenSize.height,
-      child: FittedBox(
-        fit: BoxFit.cover,
-        child: SizedBox(
-          width: screenSize.width * scale,
-          height: screenSize.height * scale,
-          child: Image.asset(
-            '$folderPath/${slideData.image}',
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              return Container(
-                color: Colors.grey[800],
-                child: const Center(
-                  child: Icon(
-                    Icons.image_not_supported,
-                    color: Colors.white,
-                    size: 64,
-                  ),
-                ),
-              );
-            },
+      child: Stack(
+        children: [
+          // Background blurred image
+          Positioned.fill(
+            child: ImageFiltered(
+              imageFilter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: Image.asset(
+                imagePath,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.grey[800],
+                    child: const Center(
+                      child: Icon(
+                        Icons.image_not_supported,
+                        color: Colors.white,
+                        size: 64,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
           ),
-        ),
+
+          // Main image
+          Positioned.fill(
+            child: Center(
+              child: Transform.scale(
+                scale: scale,
+                child: Image.asset(
+                  imagePath,
+                  fit: BoxFit.contain,
+                  width: double.infinity,
+                  height: double.infinity,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.grey[800],
+                      child: const Center(
+                        child: Icon(
+                          Icons.image_not_supported,
+                          color: Colors.white,
+                          size: 64,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
