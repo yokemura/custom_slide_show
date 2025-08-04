@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'dart:ui' as ui;
+import 'dart:async';
 import 'slide_item.dart';
 import 'providers/slideshow_provider.dart';
 import 'providers/animation_provider.dart';
 import 'widgets/caption_display.dart';
 import 'widgets/slideshow_controls_hooks.dart';
+import 'slideshow_settings_screen.dart';
 
 // 定数定義
 const double _defaultSlideDuration = 8.0; // デフォルトのスライド表示時間（秒）
@@ -29,6 +31,36 @@ class SlideshowViewHooks extends HookConsumerWidget {
     // プロバイダーの状態を取得
     final slideshowState = ref.watch(slideshowProvider);
     final slideshowNotifier = ref.read(slideshowProvider.notifier);
+
+    // コントロール表示状態を管理
+    final isControlsVisible = useState(true);
+    final controlsTimer = useRef<Timer?>(null);
+    
+    // コントロール表示/非表示の関数
+    final showControls = useCallback(() {
+      isControlsVisible.value = true;
+      controlsTimer.value?.cancel();
+      controlsTimer.value = Timer(const Duration(seconds: 5), () {
+        isControlsVisible.value = false;
+      });
+    }, []);
+    
+    final hideControls = useCallback(() {
+      isControlsVisible.value = false;
+      controlsTimer.value?.cancel();
+    }, []);
+    
+    // 画面タップ時の処理
+    final handleTap = useCallback(() {
+      showControls();
+    }, [showControls]);
+    
+    // コンポーネントのクリーンアップ
+    useEffect(() {
+      return () {
+        controlsTimer.value?.cancel();
+      };
+    }, []);
 
     // 初期化（初回のみ実行）
     useEffect(() {
@@ -115,66 +147,92 @@ class SlideshowViewHooks extends HookConsumerWidget {
       );
     }
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          // 現在のスライド
-          if (slideshowState.currentSlide != null)
-            Transform.translate(
-              offset: Offset(
-                panAnimation.dx * screenSize.width,
-                panAnimation.dy * screenSize.height,
-              ),
-              child: _SlideLayer(
-                folderPath: folderPath,
-                slideData: slideshowState.currentSlide!,
-                screenSize: screenSize,
-              ),
-            ),
-
-          // 次のスライド（重ねて表示）
-          if (slideshowState.hasNextSlide && slideshowState.nextSlide != null)
-            Opacity(
-              opacity: fadeAnimation,
-              child: Transform.translate(
-                offset: slideshowState.nextSlide!.pan != null
-                    ? Offset(
-                        calculatePanOffset(slideshowState.nextSlide!).dx * screenSize.width,
-                        calculatePanOffset(slideshowState.nextSlide!).dy * screenSize.height,
-                      )
-                    : Offset.zero,
+    return GestureDetector(
+      onTap: handleTap,
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
+          children: [
+            // 現在のスライド
+            if (slideshowState.currentSlide != null)
+              Transform.translate(
+                offset: Offset(
+                  panAnimation.dx * screenSize.width,
+                  panAnimation.dy * screenSize.height,
+                ),
                 child: _SlideLayer(
                   folderPath: folderPath,
-                  slideData: slideshowState.nextSlide!,
+                  slideData: slideshowState.currentSlide!,
                   screenSize: screenSize,
                 ),
               ),
-            ),
 
-          // キャプション表示
-          if (slideshowState.currentCaption.isNotEmpty)
-            CaptionDisplay(
-              caption: slideshowState.currentCaption,
-            ),
+            // 次のスライド（重ねて表示）
+            if (slideshowState.hasNextSlide && slideshowState.nextSlide != null)
+              Opacity(
+                opacity: fadeAnimation,
+                child: Transform.translate(
+                  offset: slideshowState.nextSlide!.pan != null
+                      ? Offset(
+                          calculatePanOffset(slideshowState.nextSlide!).dx * screenSize.width,
+                          calculatePanOffset(slideshowState.nextSlide!).dy * screenSize.height,
+                        )
+                      : Offset.zero,
+                  child: _SlideLayer(
+                    folderPath: folderPath,
+                    slideData: slideshowState.nextSlide!,
+                    screenSize: screenSize,
+                  ),
+                ),
+              ),
 
-          // コントロールレイヤー
-          SlideshowControlsHooks(
-            onBack: () => Navigator.of(context).pop(),
-            onPreviousSlide: () {
-              if (slideshowState.hasPreviousSlide) {
-                slideshowNotifier.goToPreviousSlide();
-              }
-            },
-            onNextSlide: () {
-              if (slideshowState.hasNextSlide) {
-                slideshowNotifier.goToNextSlide();
-              }
-            },
-            currentIndex: slideshowState.currentIndex + 1,
-            totalSlides: slideshowState.totalSlides,
-          ),
-        ],
+            // キャプション表示
+            if (slideshowState.currentCaption.isNotEmpty)
+              CaptionDisplay(
+                caption: slideshowState.currentCaption,
+              ),
+
+            // コントロールレイヤー（表示制御は親が管理）
+            if (isControlsVisible.value)
+              SlideshowControlsHooks(
+                onBack: () => Navigator.of(context).pop(),
+                onPreviousSlide: () {
+                  if (slideshowState.hasPreviousSlide) {
+                    slideshowNotifier.goToPreviousSlide();
+                  }
+                },
+                onNextSlide: () {
+                  if (slideshowState.hasNextSlide) {
+                    slideshowNotifier.goToNextSlide();
+                  }
+                },
+                onSettings: () async {
+                  final result = await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => SlideshowSettingsScreen(
+                        folderPath: folderPath,
+                        slideshowData: slideshowData,
+                        currentSlideIndex: slideshowState.currentIndex,
+                      ),
+                    ),
+                  );
+
+                  if (result != null && result is Map<String, dynamic>) {
+                    final updatedSlideshowData = result['slideshowData'] as List<SlideItem>;
+                    final currentSlideIndex = result['currentSlideIndex'] as int;
+                    
+                    // スライドショーデータを更新
+                    slideshowNotifier.updateSlideshowData(updatedSlideshowData);
+                    
+                    // 現在のスライドインデックスに移動
+                    slideshowNotifier.goToSlide(currentSlideIndex);
+                  }
+                },
+                currentIndex: slideshowState.currentIndex + 1,
+                totalSlides: slideshowState.totalSlides,
+              ),
+          ],
+        ),
       ),
     );
   }
