@@ -6,6 +6,7 @@ import 'slide_item.dart';
 import 'providers/slideshow_provider.dart';
 import 'providers/animation_provider.dart';
 import 'widgets/caption_display.dart';
+import 'widgets/slideshow_controls_hooks.dart';
 
 // 定数定義
 const double _defaultSlideDuration = 8.0; // デフォルトのスライド表示時間（秒）
@@ -157,25 +158,21 @@ class SlideshowViewHooks extends HookConsumerWidget {
               caption: slideshowState.currentCaption,
             ),
 
-          // スライド情報表示
-          Positioned(
-            top: 20,
-            right: 20,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.7),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                '${slideshowState.currentIndex + 1} / ${slideshowState.totalSlides}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
+          // コントロールレイヤー
+          SlideshowControlsHooks(
+            onBack: () => Navigator.of(context).pop(),
+            onPreviousSlide: () {
+              if (slideshowState.hasPreviousSlide) {
+                slideshowNotifier.goToPreviousSlide();
+              }
+            },
+            onNextSlide: () {
+              if (slideshowState.hasNextSlide) {
+                slideshowNotifier.goToNextSlide();
+              }
+            },
+            currentIndex: slideshowState.currentIndex + 1,
+            totalSlides: slideshowState.totalSlides,
           ),
         ],
       ),
