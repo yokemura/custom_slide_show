@@ -207,25 +207,30 @@ class _SlideLayer extends StatelessWidget {
         children: [
           // Background blurred image
           Positioned.fill(
-            child: ImageFiltered(
-              imageFilter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: Image.asset(
-                imagePath,
-                fit: BoxFit.cover,
-                width: double.infinity,
-                height: double.infinity,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.grey[800],
-                    child: const Center(
-                      child: Icon(
-                        Icons.image_not_supported,
-                        color: Colors.white,
-                        size: 64,
-                      ),
-                    ),
-                  );
-                },
+            child: Center(
+              child: Transform.scale(
+                scale: scale,
+                child: ImageFiltered(
+                  imageFilter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                  child: Image.asset(
+                    imagePath,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.grey[800],
+                        child: const Center(
+                          child: Icon(
+                            Icons.image_not_supported,
+                            color: Colors.white,
+                            size: 64,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ),
             ),
           ),
