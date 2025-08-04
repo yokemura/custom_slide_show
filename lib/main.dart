@@ -7,7 +7,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as path;
-import 'slideshow_view.dart';
+
 import 'slideshow_view_hooks.dart';
 import 'slide_item.dart';
 

@@ -45,10 +45,7 @@ class SlideshowViewHooks extends HookConsumerWidget {
       });
     }, []);
     
-    final hideControls = useCallback(() {
-      isControlsVisible.value = false;
-      controlsTimer.value?.cancel();
-    }, []);
+
     
     // 画面タップ時の処理
     final handleTap = useCallback(() {
