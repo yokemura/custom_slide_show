@@ -535,6 +535,12 @@ class SlideshowSettingsScreenHooks extends HookConsumerWidget {
     // キャプション状態の管理
     final captionState = useState<CaptionState?>(currentSlide?.caption ?? const CaptionState.keep());
     
+    // スライドが切り替わった時にcaptionStateを更新
+    useEffect(() {
+      captionState.value = currentSlide?.caption ?? const CaptionState.keep();
+      return null;
+    }, [currentSlide?.caption]);
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -551,7 +557,7 @@ class SlideshowSettingsScreenHooks extends HookConsumerWidget {
         RadioListTile<CaptionState>(
           title: const Text('キャプションを表示'),
           value: CaptionState.show(textController.text),
-          groupValue: captionState.value,
+          groupValue: captionState.value is CaptionShow ? captionState.value : null,
           onChanged: (value) {
             captionState.value = value;
             updateSlideData(caption: value);
@@ -560,7 +566,7 @@ class SlideshowSettingsScreenHooks extends HookConsumerWidget {
         RadioListTile<CaptionState>(
           title: const Text('キャプションを消去'),
           value: const CaptionState.hide(),
-          groupValue: captionState.value,
+          groupValue: captionState.value is CaptionHide ? captionState.value : null,
           onChanged: (value) {
             captionState.value = value;
             updateSlideData(caption: value);
@@ -569,7 +575,7 @@ class SlideshowSettingsScreenHooks extends HookConsumerWidget {
         RadioListTile<CaptionState>(
           title: const Text('キャプションを継続'),
           value: const CaptionState.keep(),
-          groupValue: captionState.value,
+          groupValue: captionState.value is CaptionKeep ? captionState.value : null,
           onChanged: (value) {
             captionState.value = value;
             updateSlideData(caption: value);
