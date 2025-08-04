@@ -1,3 +1,4 @@
+import 'package:custom_slide_show/slideshow_settings_screen_hooks.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -8,7 +9,6 @@ import 'providers/slideshow_provider.dart';
 import 'providers/animation_provider.dart';
 import 'widgets/caption_display.dart';
 import 'widgets/slideshow_controls_hooks.dart';
-import 'slideshow_settings_screen.dart';
 
 // 定数定義
 const double _defaultSlideDuration = 8.0; // デフォルトのスライド表示時間（秒）
@@ -206,7 +206,7 @@ class SlideshowViewHooks extends HookConsumerWidget {
                 onSettings: () async {
                   final result = await Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (context) => SlideshowSettingsScreen(
+                      builder: (context) => SlideshowSettingsScreenHooks(
                         folderPath: folderPath,
                         slideshowData: slideshowData,
                         currentSlideIndex: slideshowState.currentIndex,

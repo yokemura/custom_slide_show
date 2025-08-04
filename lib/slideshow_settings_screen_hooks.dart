@@ -1,15 +1,43 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'dart:io';
-import 'package:path/path.dart' as path;
+import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'slide_item.dart';
 
-class SlideshowSettingsScreen extends StatefulWidget {
+// Stateクラス定義
+class SlideshowSettingsState {
+  final List<SlideItem> slideshowData;
+  final int currentSlideIndex;
+  
+  SlideshowSettingsState({
+    required this.slideshowData,
+    required this.currentSlideIndex,
+  });
+  
+  SlideshowSettingsState copyWith({
+    List<SlideItem>? slideshowData,
+    int? currentSlideIndex,
+  }) {
+    return SlideshowSettingsState(
+      slideshowData: slideshowData ?? this.slideshowData,
+      currentSlideIndex: currentSlideIndex ?? this.currentSlideIndex,
+    );
+  }
+}
+
+// Provider定義
+final slideshowSettingsProvider = StateProvider<SlideshowSettingsState>((ref) {
+  return SlideshowSettingsState(
+    slideshowData: [],
+    currentSlideIndex: 0,
+  );
+});
+
+class SlideshowSettingsScreenHooks extends HookConsumerWidget {
   final String folderPath;
   final List<SlideItem> slideshowData;
   final int currentSlideIndex;
 
-  const SlideshowSettingsScreen({
+  const SlideshowSettingsScreenHooks({
     super.key,
     required this.folderPath,
     required this.slideshowData,
@@ -17,60 +45,134 @@ class SlideshowSettingsScreen extends StatefulWidget {
   });
 
   @override
-  State<SlideshowSettingsScreen> createState() => _SlideshowSettingsScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    // TextEditingControllerを管理
+    final textController = useTextEditingController();
+    final durationController = useTextEditingController();
+    final scaleController = useTextEditingController();
+    final xoffsetController = useTextEditingController();
+    final yoffsetController = useTextEditingController();
 
-class _SlideshowSettingsScreenState extends State<SlideshowSettingsScreen> {
-  late List<SlideItem> _slideshowData;
-  late int _selectedSlideIndex;
-  bool _hasChanges = false;
-  
-  // TextEditingControllerを管理
-  late TextEditingController _textController;
-  late TextEditingController _durationController;
-  late TextEditingController _scaleController;
-  late TextEditingController _xoffsetController;
-  late TextEditingController _yoffsetController;
+    // Providerの初期化とフィールド初期値設定（初回のみ）
+    useEffect(() {
+      Future.microtask(() {
+        ref.read(slideshowSettingsProvider.notifier).state = SlideshowSettingsState(
+          slideshowData: slideshowData,
+          currentSlideIndex: currentSlideIndex,
+        );
+        
+        // 初期値設定もここで行う
+        if (slideshowData.isNotEmpty) {
+          final initialSlide = slideshowData[currentSlideIndex];
+          textController.text = initialSlide.text ?? '';
+          durationController.text = initialSlide.duration?.toString() ?? '';
+          scaleController.text = initialSlide.scale?.toString() ?? '';
+          xoffsetController.text = initialSlide.xoffset?.toString() ?? '';
+          yoffsetController.text = initialSlide.yoffset?.toString() ?? '';
+        }
+      });
+      return null;
+    }, []);
 
-  @override
-  void initState() {
-    super.initState();
-    _slideshowData = List.from(widget.slideshowData);
-    _selectedSlideIndex = widget.currentSlideIndex;
-    
-    // TextEditingControllerを初期化
-    _textController = TextEditingController();
-    _durationController = TextEditingController();
-    _scaleController = TextEditingController();
-    _xoffsetController = TextEditingController();
-    _yoffsetController = TextEditingController();
-    
-    // 初期値を設定
-    _updateControllers();
-  }
+    final state = ref.watch(slideshowSettingsProvider);
 
-  @override
-  Widget build(BuildContext context) {
+    // 現在のスライドデータを取得
+    final currentSlide = state.slideshowData.isNotEmpty 
+        ? state.slideshowData[state.currentSlideIndex] 
+        : null;
+
+    // 入力フィールドの値を更新（スライド切り替え時のみ）
+    useEffect(() {
+      if (currentSlide != null) {
+        textController.text = currentSlide.text ?? '';
+        durationController.text = currentSlide.duration?.toString() ?? '';
+        scaleController.text = currentSlide.scale?.toString() ?? '';
+        xoffsetController.text = currentSlide.xoffset?.toString() ?? '';
+        yoffsetController.text = currentSlide.yoffset?.toString() ?? '';
+      }
+      return null;
+    }, [state.currentSlideIndex]);
+
+    // スライドデータ更新関数
+    void updateSlideData({
+      String? text,
+      double? duration,
+      double? scale,
+      double? xoffset,
+      double? yoffset,
+      PanDirection? pan,
+    }) {
+      if (currentSlide == null) return;
+      
+      final updatedSlide = currentSlide.copyWith(
+        text: text != null ? (text.isEmpty ? null : text) : currentSlide.text,
+        duration: duration,
+        scale: scale,
+        xoffset: xoffset,
+        yoffset: yoffset,
+        pan: pan,
+      );
+
+      final newSlideshowData = List<SlideItem>.from(state.slideshowData);
+      newSlideshowData[state.currentSlideIndex] = updatedSlide;
+      
+      ref.read(slideshowSettingsProvider.notifier).state = 
+        state.copyWith(slideshowData: newSlideshowData);
+    }
+
+    // スライド選択時の処理
+    void selectSlide(int index) {
+      // 現在の入力内容を確定
+      updateSlideData(
+        text: textController.text,
+        duration: double.tryParse(durationController.text),
+        scale: double.tryParse(scaleController.text),
+        xoffset: double.tryParse(xoffsetController.text),
+        yoffset: double.tryParse(yoffsetController.text),
+      );
+      
+      // スライドを切り替え
+      ref.read(slideshowSettingsProvider.notifier).state = 
+        state.copyWith(currentSlideIndex: index);
+    }
+
+    // 戻るボタンの処理
+    void onBackPressed() {
+      // 現在の入力内容を確定
+      updateSlideData(
+        text: textController.text,
+        duration: double.tryParse(durationController.text),
+        scale: double.tryParse(scaleController.text),
+        xoffset: double.tryParse(xoffsetController.text),
+        yoffset: double.tryParse(yoffsetController.text),
+      );
+      
+      // データを返してpop
+      final currentState = ref.read(slideshowSettingsProvider);
+      Navigator.of(context).pop({
+        'slideshowData': currentState.slideshowData,
+        'currentSlideIndex': currentState.currentSlideIndex,
+      });
+    }
+
+    // キャンセルボタンの処理
+    void onCancelPressed() {
+      Navigator.of(context).pop(null);
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('スライドショー設定'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: onBackPressed,
+        ),
         actions: [
-          if (_hasChanges) ...[
-            TextButton(
-              onPressed: _discardChanges,
-              child: const Text('キャンセル'),
-            ),
-            TextButton(
-              onPressed: _saveChanges,
-              child: const Text('保存'),
-            ),
-          ] else ...[
-            TextButton(
-              onPressed: _returnToSlideshow,
-              child: const Text('戻る'),
-            ),
-          ],
+          TextButton(
+            onPressed: onCancelPressed,
+            child: const Text('キャンセル'),
+          ),
         ],
       ),
       body: Row(
@@ -92,7 +194,7 @@ class _SlideshowSettingsScreenState extends State<SlideshowSettingsScreen> {
                       const Icon(Icons.list, color: Colors.blue),
                       const SizedBox(width: 8),
                       Text(
-                        'スライド一覧 (${_slideshowData.length})',
+                        'スライド一覧 (${state.slideshowData.length})',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -103,10 +205,10 @@ class _SlideshowSettingsScreenState extends State<SlideshowSettingsScreen> {
                 ),
                 Expanded(
                   child: ListView.builder(
-                    itemCount: _slideshowData.length,
+                    itemCount: state.slideshowData.length,
                     itemBuilder: (context, index) {
-                      final slide = _slideshowData[index];
-                      final isSelected = index == _selectedSlideIndex;
+                      final slide = state.slideshowData[index];
+                      final isSelected = index == state.currentSlideIndex;
                       
                       return ListTile(
                         selected: isSelected,
@@ -121,12 +223,7 @@ class _SlideshowSettingsScreenState extends State<SlideshowSettingsScreen> {
                         trailing: isSelected 
                           ? const Icon(Icons.check, color: Colors.blue)
                           : null,
-                        onTap: () {
-                          setState(() {
-                            _selectedSlideIndex = index;
-                          });
-                          _updateControllers();
-                        },
+                        onTap: () => selectSlide(index),
                       );
                     },
                   ),
@@ -137,21 +234,44 @@ class _SlideshowSettingsScreenState extends State<SlideshowSettingsScreen> {
           
           // 右側：設定編集エリア
           Expanded(
-            child: _buildSettingsEditor(),
+            child: _buildSettingsEditor(
+              currentSlide,
+              textController,
+              durationController,
+              scaleController,
+              xoffsetController,
+              yoffsetController,
+              updateSlideData,
+              state,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSettingsEditor() {
-    if (_slideshowData.isEmpty) {
+  Widget _buildSettingsEditor(
+    SlideItem? currentSlide,
+    TextEditingController textController,
+    TextEditingController durationController,
+    TextEditingController scaleController,
+    TextEditingController xoffsetController,
+    TextEditingController yoffsetController,
+    Function({
+      String? text,
+      double? duration,
+      double? scale,
+      double? xoffset,
+      double? yoffset,
+      PanDirection? pan,
+    }) updateSlideData,
+    SlideshowSettingsState state,
+  ) {
+    if (currentSlide == null) {
       return const Center(
         child: Text('スライドがありません'),
       );
     }
-
-    final currentSlide = _slideshowData[_selectedSlideIndex];
     
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -164,7 +284,7 @@ class _SlideshowSettingsScreenState extends State<SlideshowSettingsScreen> {
               const Icon(Icons.edit, color: Colors.blue),
               const SizedBox(width: 8),
               Text(
-                'スライド ${_selectedSlideIndex + 1} の設定',
+                'スライド ${state.currentSlideIndex + 1} の設定',
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -186,9 +306,6 @@ class _SlideshowSettingsScreenState extends State<SlideshowSettingsScreen> {
           _buildTextField(
             label: '画像ファイル名',
             controller: TextEditingController(text: currentSlide.image),
-            onChanged: (value) => _updateSlide(
-              currentSlide.copyWith(image: value),
-            ),
             enabled: false, // ファイル名は変更不可
           ),
           const SizedBox(height: 16),
@@ -196,10 +313,9 @@ class _SlideshowSettingsScreenState extends State<SlideshowSettingsScreen> {
           // キャプションテキスト
           _buildTextField(
             label: 'キャプションテキスト',
-            controller: _textController,
-            onChanged: (value) => _updateSlide(
-              currentSlide.copyWith(text: value.isEmpty ? null : value),
-            ),
+            controller: textController,
+            onSubmitted: (value) => updateSlideData(text: value),
+            onEditingComplete: () => updateSlideData(text: textController.text),
             maxLines: 3,
           ),
           const SizedBox(height: 16),
@@ -233,7 +349,7 @@ class _SlideshowSettingsScreenState extends State<SlideshowSettingsScreen> {
                     break;
                 }
               }
-              _updateSlide(currentSlide.copyWith(pan: pan));
+              updateSlideData(pan: pan);
             },
           ),
           const SizedBox(height: 16),
@@ -241,11 +357,9 @@ class _SlideshowSettingsScreenState extends State<SlideshowSettingsScreen> {
           // 表示時間
           _buildNumberField(
             label: '表示時間 (秒)',
-            controller: _durationController,
-            onChanged: (value) {
-              final duration = double.tryParse(value);
-              _updateSlide(currentSlide.copyWith(duration: duration));
-            },
+            controller: durationController,
+            onSubmitted: (value) => updateSlideData(duration: double.tryParse(value)),
+            onEditingComplete: () => updateSlideData(duration: double.tryParse(durationController.text)),
             hint: '例: 5.0',
           ),
           const SizedBox(height: 16),
@@ -253,11 +367,9 @@ class _SlideshowSettingsScreenState extends State<SlideshowSettingsScreen> {
           // スケール
           _buildNumberField(
             label: 'スケール',
-            controller: _scaleController,
-            onChanged: (value) {
-              final scale = double.tryParse(value);
-              _updateSlide(currentSlide.copyWith(scale: scale));
-            },
+            controller: scaleController,
+            onSubmitted: (value) => updateSlideData(scale: double.tryParse(value)),
+            onEditingComplete: () => updateSlideData(scale: double.tryParse(scaleController.text)),
             hint: '例: 1.2',
           ),
           const SizedBox(height: 16),
@@ -265,11 +377,9 @@ class _SlideshowSettingsScreenState extends State<SlideshowSettingsScreen> {
           // Xオフセット
           _buildNumberField(
             label: 'Xオフセット',
-            controller: _xoffsetController,
-            onChanged: (value) {
-              final xoffset = double.tryParse(value);
-              _updateSlide(currentSlide.copyWith(xoffset: xoffset));
-            },
+            controller: xoffsetController,
+            onSubmitted: (value) => updateSlideData(xoffset: double.tryParse(value)),
+            onEditingComplete: () => updateSlideData(xoffset: double.tryParse(xoffsetController.text)),
             hint: '例: 0.1',
           ),
           const SizedBox(height: 16),
@@ -277,11 +387,9 @@ class _SlideshowSettingsScreenState extends State<SlideshowSettingsScreen> {
           // Yオフセット
           _buildNumberField(
             label: 'Yオフセット',
-            controller: _yoffsetController,
-            onChanged: (value) {
-              final yoffset = double.tryParse(value);
-              _updateSlide(currentSlide.copyWith(yoffset: yoffset));
-            },
+            controller: yoffsetController,
+            onSubmitted: (value) => updateSlideData(yoffset: double.tryParse(value)),
+            onEditingComplete: () => updateSlideData(yoffset: double.tryParse(yoffsetController.text)),
             hint: '例: -0.05',
           ),
           const SizedBox(height: 32),
@@ -296,7 +404,8 @@ class _SlideshowSettingsScreenState extends State<SlideshowSettingsScreen> {
   Widget _buildTextField({
     required String label,
     required TextEditingController controller,
-    required ValueChanged<String> onChanged,
+    Function(String)? onSubmitted,
+    VoidCallback? onEditingComplete,
     bool enabled = true,
     int maxLines = 1,
   }) {
@@ -312,9 +421,9 @@ class _SlideshowSettingsScreenState extends State<SlideshowSettingsScreen> {
         ),
         const SizedBox(height: 8),
         TextField(
-          key: ValueKey('${label}_$_selectedSlideIndex'),
           controller: controller,
-          onChanged: onChanged,
+          onSubmitted: onSubmitted,
+          onEditingComplete: onEditingComplete,
           enabled: enabled,
           maxLines: maxLines,
           decoration: const InputDecoration(
@@ -332,7 +441,8 @@ class _SlideshowSettingsScreenState extends State<SlideshowSettingsScreen> {
   Widget _buildNumberField({
     required String label,
     required TextEditingController controller,
-    required ValueChanged<String> onChanged,
+    Function(String)? onSubmitted,
+    VoidCallback? onEditingComplete,
     String? hint,
   }) {
     return Column(
@@ -347,9 +457,9 @@ class _SlideshowSettingsScreenState extends State<SlideshowSettingsScreen> {
         ),
         const SizedBox(height: 8),
         TextField(
-          key: ValueKey('${label}_$_selectedSlideIndex'),
           controller: controller,
-          onChanged: onChanged,
+          onSubmitted: onSubmitted,
+          onEditingComplete: onEditingComplete,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
             border: const OutlineInputBorder(),
@@ -425,98 +535,5 @@ class _SlideshowSettingsScreenState extends State<SlideshowSettingsScreen> {
         ],
       ),
     );
-  }
-
-  void _updateSlide(SlideItem newSlide) {
-    setState(() {
-      _slideshowData[_selectedSlideIndex] = newSlide;
-      _hasChanges = true;
-    });
-  }
-
-  void _updateControllers() {
-    if (_slideshowData.isNotEmpty) {
-      final currentSlide = _slideshowData[_selectedSlideIndex];
-      _textController.text = currentSlide.text ?? '';
-      _durationController.text = currentSlide.duration?.toString() ?? '';
-      _scaleController.text = currentSlide.scale?.toString() ?? '';
-      _xoffsetController.text = currentSlide.xoffset?.toString() ?? '';
-      _yoffsetController.text = currentSlide.yoffset?.toString() ?? '';
-    }
-  }
-
-  @override
-  void dispose() {
-    _textController.dispose();
-    _durationController.dispose();
-    _scaleController.dispose();
-    _xoffsetController.dispose();
-    _yoffsetController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _saveChanges() async {
-    try {
-      final slideshowPath = path.join(widget.folderPath, 'slideshow.json');
-      final slideshowFile = File(slideshowPath);
-      
-      // JSONに変換して保存
-      final jsonString = const JsonEncoder.withIndent('  ').convert(
-        _slideshowData.map((item) => item.toJson()).toList(),
-      );
-      await slideshowFile.writeAsString(jsonString);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('設定を保存しました'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        
-        setState(() {
-          _hasChanges = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('保存エラー: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  void _discardChanges() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('変更を破棄'),
-        content: const Text('変更を破棄してスライドショーに戻りますか？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('キャンセル'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _returnToSlideshow();
-            },
-            child: const Text('破棄'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _returnToSlideshow() {
-    Navigator.of(context).pop({
-      'slideshowData': _slideshowData,
-      'currentSlideIndex': _selectedSlideIndex,
-    });
   }
 } 
