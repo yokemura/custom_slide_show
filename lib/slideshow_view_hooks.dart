@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'slide_item.dart';
 import 'providers/slideshow_provider.dart';
 import 'providers/animation_provider.dart';
+import 'widgets/caption_display.dart';
 
 // 定数定義
 const double _defaultSlideDuration = 8.0; // デフォルトのスライド表示時間（秒）
@@ -54,10 +55,10 @@ class SlideshowViewHooks extends HookConsumerWidget {
     final panAnimation = useAnimation(
       Tween<Offset>(
         begin: slideshowState.currentSlide != null
-            ? calculatePanOffset(slideshowState.currentSlide!, MediaQuery.of(context).size)
+            ? calculatePanOffset(slideshowState.currentSlide!)
             : Offset.zero,
         end: slideshowState.currentSlide != null
-            ? calculatePanEndOffset(slideshowState.currentSlide!, MediaQuery.of(context).size)
+            ? calculatePanEndOffset(slideshowState.currentSlide!)
             : Offset.zero,
       ).animate(panController),
     );
@@ -120,7 +121,10 @@ class SlideshowViewHooks extends HookConsumerWidget {
           // 現在のスライド
           if (slideshowState.currentSlide != null)
             Transform.translate(
-              offset: panAnimation,
+              offset: Offset(
+                panAnimation.dx * screenSize.width,
+                panAnimation.dy * screenSize.height,
+              ),
               child: _SlideLayer(
                 folderPath: folderPath,
                 slideData: slideshowState.currentSlide!,
@@ -134,7 +138,10 @@ class SlideshowViewHooks extends HookConsumerWidget {
               opacity: fadeAnimation,
               child: Transform.translate(
                 offset: slideshowState.nextSlide!.pan != null
-                    ? calculatePanOffset(slideshowState.nextSlide!, screenSize)
+                    ? Offset(
+                        calculatePanOffset(slideshowState.nextSlide!).dx * screenSize.width,
+                        calculatePanOffset(slideshowState.nextSlide!).dy * screenSize.height,
+                      )
                     : Offset.zero,
                 child: _SlideLayer(
                   folderPath: folderPath,
@@ -145,27 +152,9 @@ class SlideshowViewHooks extends HookConsumerWidget {
             ),
 
           // キャプション表示
-          if (slideshowState.currentSlide?.text != null)
-            Positioned(
-              bottom: 20,
-              left: 20,
-              right: 20,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  slideshowState.currentSlide!.text!,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+          if (slideshowState.currentCaption.isNotEmpty)
+            CaptionDisplay(
+              caption: slideshowState.currentCaption,
             ),
 
           // スライド情報表示
