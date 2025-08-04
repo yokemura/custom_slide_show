@@ -1,13 +1,23 @@
 import 'package:flutter/material.dart';
 import '../tategaki.dart';
+import '../slide_item.dart';
 
 class CaptionDisplay extends StatelessWidget {
-  final String caption;
+  final CaptionState? captionState;
 
   const CaptionDisplay({
     super.key,
-    required this.caption,
+    required this.captionState,
   });
+
+  // キャプションの表示テキストを取得
+  String? get _displayText {
+    return captionState?.when(
+      show: (text) => text,
+      hide: () => null,
+      keep: () => null,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +38,11 @@ class CaptionDisplay extends StatelessWidget {
         // 縦幅を画面の90%に設定
         final captionHeight = windowHeight * 0.9;
         
+        // キャプションが表示されない場合は何も表示しない
+        if (_displayText == null) {
+          return const SizedBox.shrink();
+        }
+
         // テキストの内容に応じて幅を計算
         final textStyle = TextStyle(
           color: Colors.black,
@@ -35,7 +50,7 @@ class CaptionDisplay extends StatelessWidget {
           fontWeight: FontWeight.normal,
           height: 1.5,
         );
-        final calculatedWidth = Tategaki.calculateWidth(caption, textStyle, space, captionHeight);
+        final calculatedWidth = Tategaki.calculateWidth(_displayText!, textStyle, space, captionHeight);
         
         // 最小幅と最大幅を設定
         final minWidth = clampedFontSize * 1.5; // 最小幅
@@ -55,7 +70,7 @@ class CaptionDisplay extends StatelessWidget {
               width: finalWidth, // テキストの内容に応じて動的に計算された幅
               height: captionHeight, // 画面の縦幅の90%
               child: Tategaki(
-                caption,
+                _displayText!,
                 style: textStyle,
                 space: space, // 文字間隔
               ),

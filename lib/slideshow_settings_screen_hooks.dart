@@ -64,7 +64,11 @@ class SlideshowSettingsScreenHooks extends HookConsumerWidget {
         // 初期値設定もここで行う
         if (slideshowData.isNotEmpty) {
           final initialSlide = slideshowData[currentSlideIndex];
-          textController.text = initialSlide.text ?? '';
+          if (initialSlide.caption is CaptionShow) {
+            textController.text = (initialSlide.caption as CaptionShow).text;
+          } else {
+            textController.text = '';
+          }
           durationController.text = initialSlide.duration?.toString() ?? '';
           scaleController.text = initialSlide.scale?.toString() ?? '';
           xoffsetController.text = initialSlide.xoffset?.toString() ?? '';
@@ -84,7 +88,11 @@ class SlideshowSettingsScreenHooks extends HookConsumerWidget {
     // 入力フィールドの値を更新（スライド切り替え時のみ）
     useEffect(() {
       if (currentSlide != null) {
-        textController.text = currentSlide.text ?? '';
+        if (currentSlide.caption is CaptionShow) {
+          textController.text = (currentSlide.caption as CaptionShow).text;
+        } else {
+          textController.text = '';
+        }
         durationController.text = currentSlide.duration?.toString() ?? '';
         scaleController.text = currentSlide.scale?.toString() ?? '';
         xoffsetController.text = currentSlide.xoffset?.toString() ?? '';
@@ -95,7 +103,7 @@ class SlideshowSettingsScreenHooks extends HookConsumerWidget {
 
     // スライドデータ更新関数
     void updateSlideData({
-      String? text,
+      CaptionState? caption,
       double? duration,
       double? scale,
       double? xoffset,
@@ -105,7 +113,7 @@ class SlideshowSettingsScreenHooks extends HookConsumerWidget {
       if (currentSlide == null) return;
       
       final updatedSlide = currentSlide.copyWith(
-        text: text != null ? (text.isEmpty ? null : text) : currentSlide.text,
+        caption: caption,
         duration: duration,
         scale: scale,
         xoffset: xoffset,
@@ -120,11 +128,18 @@ class SlideshowSettingsScreenHooks extends HookConsumerWidget {
         state.copyWith(slideshowData: newSlideshowData);
     }
 
+    // 現在のキャプション状態を取得
+    CaptionState? getCurrentCaptionState() {
+      // チェックボックスの状態に応じてキャプション状態を決定
+      // この部分は後で実装
+      return const CaptionState.keep();
+    }
+
     // スライド選択時の処理
     void selectSlide(int index) {
       // 現在の入力内容を確定
       updateSlideData(
-        text: textController.text,
+        caption: getCurrentCaptionState(),
         duration: double.tryParse(durationController.text),
         scale: double.tryParse(scaleController.text),
         xoffset: double.tryParse(xoffsetController.text),
@@ -140,7 +155,7 @@ class SlideshowSettingsScreenHooks extends HookConsumerWidget {
     void onBackPressed() {
       // 現在の入力内容を確定
       updateSlideData(
-        text: textController.text,
+        caption: getCurrentCaptionState(),
         duration: double.tryParse(durationController.text),
         scale: double.tryParse(scaleController.text),
         xoffset: double.tryParse(xoffsetController.text),
@@ -258,7 +273,7 @@ class SlideshowSettingsScreenHooks extends HookConsumerWidget {
     TextEditingController xoffsetController,
     TextEditingController yoffsetController,
     Function({
-      String? text,
+      CaptionState? caption,
       double? duration,
       double? scale,
       double? xoffset,
@@ -310,13 +325,11 @@ class SlideshowSettingsScreenHooks extends HookConsumerWidget {
           ),
           const SizedBox(height: 16),
 
-          // キャプションテキスト
-          _buildTextField(
-            label: 'キャプションテキスト',
-            controller: textController,
-            onSubmitted: (value) => updateSlideData(text: value),
-            onEditingComplete: () => updateSlideData(text: textController.text),
-            maxLines: 3,
+          // キャプション設定
+          _buildCaptionSection(
+            currentSlide,
+            textController,
+            updateSlideData,
           ),
           const SizedBox(height: 16),
 
@@ -507,6 +520,85 @@ class SlideshowSettingsScreenHooks extends HookConsumerWidget {
     );
   }
 
+  Widget _buildCaptionSection(
+    SlideItem? currentSlide,
+    TextEditingController textController,
+    Function({
+      CaptionState? caption,
+      double? duration,
+      double? scale,
+      double? xoffset,
+      double? yoffset,
+      PanDirection? pan,
+    }) updateSlideData,
+  ) {
+    // キャプション状態の管理
+    final captionState = useState<CaptionState?>(currentSlide?.caption ?? const CaptionState.keep());
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'キャプション設定',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        
+        // ラジオボタンで3つの状態を選択
+        RadioListTile<CaptionState>(
+          title: const Text('キャプションを表示'),
+          value: CaptionState.show(textController.text),
+          groupValue: captionState.value,
+          onChanged: (value) {
+            captionState.value = value;
+            updateSlideData(caption: value);
+          },
+        ),
+        RadioListTile<CaptionState>(
+          title: const Text('キャプションを消去'),
+          value: const CaptionState.hide(),
+          groupValue: captionState.value,
+          onChanged: (value) {
+            captionState.value = value;
+            updateSlideData(caption: value);
+          },
+        ),
+        RadioListTile<CaptionState>(
+          title: const Text('キャプションを継続'),
+          value: const CaptionState.keep(),
+          groupValue: captionState.value,
+          onChanged: (value) {
+            captionState.value = value;
+            updateSlideData(caption: value);
+          },
+        ),
+        
+        // キャプション表示が選択されている場合のみテキストフィールドを表示
+        if (captionState.value is CaptionShow)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: TextField(
+              controller: textController,
+              onChanged: (value) {
+                final newState = CaptionState.show(value);
+                captionState.value = newState;
+                updateSlideData(caption: newState);
+              },
+              decoration: const InputDecoration(
+                labelText: 'キャプション',
+                hintText: 'キャプションを入力してください',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _buildPreviewSection(SlideItem slide) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -526,7 +618,7 @@ class SlideshowSettingsScreenHooks extends HookConsumerWidget {
           ),
           const SizedBox(height: 12),
           Text('画像: ${slide.image}'),
-          if (slide.text != null) Text('キャプション: ${slide.text}'),
+          Text('キャプション: ${_getCaptionDisplayText(slide.caption)}'),
           if (slide.pan != null) Text('パン: ${slide.pan!.name}'),
           if (slide.duration != null) Text('表示時間: ${slide.duration}秒'),
           if (slide.scale != null) Text('スケール: ${slide.scale}'),
@@ -535,5 +627,13 @@ class SlideshowSettingsScreenHooks extends HookConsumerWidget {
         ],
       ),
     );
+  }
+
+  String _getCaptionDisplayText(CaptionState? caption) {
+    return caption?.when(
+      show: (text) => '表示: $text',
+      hide: () => '消去',
+      keep: () => '継続',
+    ) ?? '未設定';
   }
 } 

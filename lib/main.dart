@@ -446,7 +446,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
       // Convert to JSON with pretty formatting
       final jsonString = const JsonEncoder.withIndent('  ').convert(
-          slideshowData.map((item) => item.toJson()).toList());
+          slideshowData.map((item) => item.toFileJson()).toList());
       await slideshowFile.writeAsString(jsonString);
 
       if (mounted) {

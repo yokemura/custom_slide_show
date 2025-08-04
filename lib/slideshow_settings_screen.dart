@@ -198,7 +198,7 @@ class _SlideshowSettingsScreenState extends State<SlideshowSettingsScreen> {
             label: 'キャプションテキスト',
             controller: _textController,
             onChanged: (value) => _updateSlide(
-              currentSlide.copyWith(text: value.isEmpty ? null : value),
+              currentSlide.copyWith(caption: value.isEmpty ? null : CaptionState.show(value)),
             ),
             maxLines: 3,
           ),
@@ -416,7 +416,7 @@ class _SlideshowSettingsScreenState extends State<SlideshowSettingsScreen> {
           ),
           const SizedBox(height: 12),
           Text('画像: ${slide.image}'),
-          if (slide.text != null) Text('キャプション: ${slide.text}'),
+          Text('キャプション: ${_getCaptionDisplayText(slide.caption)}'),
           if (slide.pan != null) Text('パン: ${slide.pan!.name}'),
           if (slide.duration != null) Text('表示時間: ${slide.duration}秒'),
           if (slide.scale != null) Text('スケール: ${slide.scale}'),
@@ -437,12 +437,24 @@ class _SlideshowSettingsScreenState extends State<SlideshowSettingsScreen> {
   void _updateControllers() {
     if (_slideshowData.isNotEmpty) {
       final currentSlide = _slideshowData[_selectedSlideIndex];
-      _textController.text = currentSlide.text ?? '';
+      if (currentSlide.caption is CaptionShow) {
+        _textController.text = (currentSlide.caption as CaptionShow).text;
+      } else {
+        _textController.text = '';
+      }
       _durationController.text = currentSlide.duration?.toString() ?? '';
       _scaleController.text = currentSlide.scale?.toString() ?? '';
       _xoffsetController.text = currentSlide.xoffset?.toString() ?? '';
       _yoffsetController.text = currentSlide.yoffset?.toString() ?? '';
     }
+  }
+
+  String _getCaptionDisplayText(CaptionState? caption) {
+    return caption?.when(
+      show: (text) => '表示: $text',
+      hide: () => '消去',
+      keep: () => '継続',
+    ) ?? '未設定';
   }
 
   @override
@@ -462,7 +474,7 @@ class _SlideshowSettingsScreenState extends State<SlideshowSettingsScreen> {
       
       // JSONに変換して保存
       final jsonString = const JsonEncoder.withIndent('  ').convert(
-        _slideshowData.map((item) => item.toJson()).toList(),
+        _slideshowData.map((item) => item.toFileJson()).toList(),
       );
       await slideshowFile.writeAsString(jsonString);
 
