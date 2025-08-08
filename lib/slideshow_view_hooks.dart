@@ -185,7 +185,7 @@ class SlideshowViewHooks extends HookConsumerWidget {
 
             // キャプション表示
             CaptionDisplay(
-              captionState: slideshowState.currentSlide?.caption,
+              caption: slideshowState.currentCaption,
             ),
 
             // コントロールレイヤー（表示制御は親が管理）
