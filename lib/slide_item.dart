@@ -49,10 +49,10 @@ class SlideItem with _$SlideItem {
       pan: json['pan'] != null ? PanDirection.values.firstWhere(
         (e) => e.name == json['pan'],
       ) : null,
-      duration: json['duration'] as double?,
-      scale: json['scale'] as double?,
-      xoffset: json['xoffset'] as double?,
-      yoffset: json['yoffset'] as double?,
+      duration: json['duration'] != null ? (json['duration'] is int ? (json['duration'] as int).toDouble() : json['duration'] as double) : null,
+      scale: json['scale'] != null ? (json['scale'] is int ? (json['scale'] as int).toDouble() : json['scale'] as double) : null,
+      xoffset: json['xoffset'] != null ? (json['xoffset'] is int ? (json['xoffset'] as int).toDouble() : json['xoffset'] as double) : null,
+      yoffset: json['yoffset'] != null ? (json['yoffset'] is int ? (json['yoffset'] as int).toDouble() : json['yoffset'] as double) : null,
     );
   }
 }

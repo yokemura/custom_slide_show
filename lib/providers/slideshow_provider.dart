@@ -126,6 +126,6 @@ class SlideshowNotifier extends StateNotifier<SlideshowState> {
 }
 
 // プロバイダーの定義
-final slideshowProvider = StateNotifierProvider<SlideshowNotifier, SlideshowState>(
+final slideshowProvider = StateNotifierProvider.autoDispose<SlideshowNotifier, SlideshowState>(
   (ref) => SlideshowNotifier(),
 ); 
