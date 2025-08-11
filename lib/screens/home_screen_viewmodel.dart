@@ -9,7 +9,9 @@ import '../slideshow_repository.dart';
 import '../slide_item.dart';
 
 class HomeScreenViewModel extends ChangeNotifier {
-  final SlideshowRepository _repository = SlideshowRepository();
+  final SlideshowRepository _repository;
+  
+  HomeScreenViewModel(this._repository);
   
   // プロパティ
   bool _isLoading = false;
