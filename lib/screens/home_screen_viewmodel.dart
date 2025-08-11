@@ -20,6 +20,7 @@ class HomeScreenViewModel extends ChangeNotifier {
   // Getters
   bool get isLoading => _isLoading;
   Object? get error => _error;
+  SlideshowRepository get repository => _repository;
   
   // Repositoryの値を中継するcomputed property
   bool get isInitialized => _repository.isInitialized;

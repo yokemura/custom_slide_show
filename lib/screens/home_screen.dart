@@ -327,7 +327,7 @@ class MyHomePage extends HookConsumerWidget {
         MaterialPageRoute(
           builder: (context) => SlideshowScreen(
             folderPath: viewModel.selectedFolderPath ?? '',
-            slideshowData: slideshowData,
+            repository: viewModel.repository,
           ),
         ),
       );
@@ -341,7 +341,7 @@ class MyHomePage extends HookConsumerWidget {
         MaterialPageRoute(
           builder: (context) => SlideshowScreen(
             folderPath: viewModel.selectedFolderPath ?? '',
-            slideshowData: slideshowData,
+            repository: viewModel.repository,
             startIndex: startIndex,
           ),
         ),

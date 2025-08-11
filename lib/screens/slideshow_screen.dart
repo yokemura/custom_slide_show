@@ -5,33 +5,37 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'dart:ui' as ui;
 import 'dart:async';
 import '../slide_item.dart';
-import '../providers/slideshow_provider.dart';
-import '../providers/animation_provider.dart';
+import '../slideshow_repository.dart';
 import '../widgets/caption_display.dart';
 import '../widgets/slideshow_controls_hooks.dart';
 import '../constants/slideshow_constants.dart';
 import '../utils/slide_utils.dart';
 import '../widgets/slide_layer/slide_layer.dart';
+import 'slideshow_screen_viewmodel.dart';
 
 // 定数定義はSlideshowConstantsクラスに移動済み
 
 class SlideshowScreen extends HookConsumerWidget {
   final String folderPath;
-  final List<SlideItem> slideshowData;
+  final SlideshowRepository repository;
   final int? startIndex;
 
   const SlideshowScreen({
     super.key,
     required this.folderPath,
-    required this.slideshowData,
+    required this.repository,
     this.startIndex,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // プロバイダーの状態を取得
-    final slideshowState = ref.watch(slideshowProvider);
-    final slideshowNotifier = ref.read(slideshowProvider.notifier);
+    // ViewModelを作成
+    final viewModel = SlideshowScreenViewModel(repository);
+    
+    // ListenableBuilderでViewModelの状態を監視
+    return ListenableBuilder(
+      listenable: viewModel,
+      builder: (context, child) {
 
     // コントロール表示状態を管理
     final isControlsVisible = useState(true);
@@ -62,9 +66,9 @@ class SlideshowScreen extends HookConsumerWidget {
 
     // 初期化（初回のみ実行）
     useEffect(() {
-      if (slideshowState.slideshowData.isEmpty && slideshowData.isNotEmpty) {
+      if (viewModel.slideshowData.isEmpty) {
         Future.microtask(() {
-          slideshowNotifier.initialize(slideshowData, startIndex: startIndex);
+          viewModel.initialize(startIndex: startIndex);
         });
       }
       return null;
@@ -73,7 +77,7 @@ class SlideshowScreen extends HookConsumerWidget {
     // アニメーションコントローラー
     final panController = useAnimationController(
       duration: Duration(
-        milliseconds: ((slideshowState.currentSlide?.duration ?? SlideshowConstants.defaultSlideDuration) * 1000).round(),
+        milliseconds: ((viewModel.currentSlide?.duration ?? SlideshowConstants.defaultSlideDuration) * 1000).round(),
       ),
     );
     final fadeController = useAnimationController(
@@ -85,11 +89,11 @@ class SlideshowScreen extends HookConsumerWidget {
     // アニメーション
     final panAnimation = useAnimation(
       Tween<Offset>(
-        begin: slideshowState.currentSlide != null
-            ? SlideUtils.calculatePanOffset(slideshowState.currentSlide!)
+        begin: viewModel.currentSlide != null
+            ? SlideUtils.calculatePanOffset(viewModel.currentSlide!)
             : Offset.zero,
-        end: slideshowState.currentSlide != null
-            ? SlideUtils.calculatePanEndOffset(slideshowState.currentSlide!)
+        end: viewModel.currentSlide != null
+            ? SlideUtils.calculatePanEndOffset(viewModel.currentSlide!)
             : Offset.zero,
       ).animate(panController),
     );
@@ -103,21 +107,21 @@ class SlideshowScreen extends HookConsumerWidget {
 
     // スライド切り替えの処理
     useEffect(() {
-      if (slideshowState.currentSlide != null && slideshowState.slideshowData.isNotEmpty) {
+      if (viewModel.currentSlide != null && viewModel.slideshowData.isNotEmpty) {
         // アニメーションコントローラーのdurationを更新
         final newDuration = Duration(
-          milliseconds: ((slideshowState.currentSlide!.duration ?? SlideshowConstants.defaultSlideDuration) * 1000).round(),
+          milliseconds: ((viewModel.currentSlide!.duration ?? SlideshowConstants.defaultSlideDuration) * 1000).round(),
         );
         panController.duration = newDuration;
         
         // パンアニメーション開始
         panController.forward().then((_) {
           // パンアニメーション完了後、次のスライドがある場合はフェードアニメーション開始
-          if (slideshowState.hasNextSlide) {
+          if (viewModel.hasNextSlide) {
             fadeController.forward().then((_) {
               // フェードアニメーション完了後、次のスライドに移動
               Future.microtask(() {
-                slideshowNotifier.goToNextSlide();
+                viewModel.goToNextSlide();
                 
                 // アニメーションコントローラーをリセット
                 panController.reset();
@@ -128,12 +132,12 @@ class SlideshowScreen extends HookConsumerWidget {
         });
       }
       return null;
-    }, [slideshowState.currentIndex, slideshowState.slideshowData.isNotEmpty]);
+    }, [viewModel.currentSlideIndex, viewModel.slideshowData.isNotEmpty]);
 
     // 画面サイズを取得
     final screenSize = MediaQuery.of(context).size;
 
-    if (slideshowState.slideshowData.isEmpty) {
+    if (viewModel.slideshowData.isEmpty) {
       return const Scaffold(
         backgroundColor: Colors.black,
         body: Center(
@@ -152,7 +156,7 @@ class SlideshowScreen extends HookConsumerWidget {
         body: Stack(
           children: [
             // 現在のスライド
-            if (slideshowState.currentSlide != null)
+            if (viewModel.currentSlide != null)
               Transform.translate(
                 offset: Offset(
                   panAnimation.dx * screenSize.width,
@@ -160,25 +164,25 @@ class SlideshowScreen extends HookConsumerWidget {
                 ),
                 child: SlideLayer(
                   folderPath: folderPath,
-                  slideData: slideshowState.currentSlide!,
+                  slideData: viewModel.currentSlide!,
                   screenSize: screenSize,
                 ),
               ),
 
             // 次のスライド（重ねて表示）
-            if (slideshowState.hasNextSlide && slideshowState.nextSlide != null)
+            if (viewModel.hasNextSlide && viewModel.nextSlide != null)
               Opacity(
                 opacity: fadeAnimation,
                 child: Transform.translate(
-                  offset: slideshowState.nextSlide!.pan != null
+                  offset: viewModel.nextSlide!.pan != null
                       ? Offset(
-                          SlideUtils.calculatePanOffset(slideshowState.nextSlide!).dx * screenSize.width,
-                          SlideUtils.calculatePanOffset(slideshowState.nextSlide!).dy * screenSize.height,
+                          SlideUtils.calculatePanOffset(viewModel.nextSlide!).dx * screenSize.width,
+                          SlideUtils.calculatePanOffset(viewModel.nextSlide!).dy * screenSize.height,
                         )
                       : Offset.zero,
                   child: SlideLayer(
                     folderPath: folderPath,
-                    slideData: slideshowState.nextSlide!,
+                    slideData: viewModel.nextSlide!,
                     screenSize: screenSize,
                   ),
                 ),
@@ -186,7 +190,7 @@ class SlideshowScreen extends HookConsumerWidget {
 
             // キャプション表示
             CaptionDisplay(
-              caption: slideshowState.currentCaption,
+              caption: viewModel.currentCaption,
             ),
 
             // コントロールレイヤー（表示制御は親が管理）
@@ -194,13 +198,13 @@ class SlideshowScreen extends HookConsumerWidget {
               SlideshowControlsHooks(
                 onBack: () => Navigator.of(context).pop(),
                 onPreviousSlide: () {
-                  if (slideshowState.hasPreviousSlide) {
-                    slideshowNotifier.goToPreviousSlide();
+                  if (viewModel.hasPreviousSlide) {
+                    viewModel.goToPreviousSlide();
                   }
                 },
                 onNextSlide: () {
-                  if (slideshowState.hasNextSlide) {
-                    slideshowNotifier.goToNextSlide();
+                  if (viewModel.hasNextSlide) {
+                    viewModel.goToNextSlide();
                   }
                 },
                 onSettings: () async {
@@ -208,8 +212,8 @@ class SlideshowScreen extends HookConsumerWidget {
                     MaterialPageRoute(
                       builder: (context) => SettingScreen(
                         folderPath: folderPath,
-                        slideshowData: slideshowData,
-                        currentSlideIndex: slideshowState.currentIndex,
+                        slideshowData: viewModel.slideshowData,
+                        currentSlideIndex: viewModel.currentSlideIndex,
                       ),
                     ),
                   );
@@ -219,18 +223,20 @@ class SlideshowScreen extends HookConsumerWidget {
                     final currentSlideIndex = result['currentSlideIndex'] as int;
                     
                     // スライドショーデータを更新
-                    slideshowNotifier.updateSlideshowData(updatedSlideshowData);
+                    viewModel.updateSlideshowData(updatedSlideshowData);
                     
                     // 現在のスライドインデックスに移動
-                    slideshowNotifier.goToSlide(currentSlideIndex);
+                    viewModel.goToSlide(currentSlideIndex);
                   }
                 },
-                currentIndex: slideshowState.currentIndex + 1,
-                totalSlides: slideshowState.totalSlides,
+                currentIndex: viewModel.currentSlideIndex + 1,
+                totalSlides: viewModel.totalSlides,
               ),
           ],
         ),
       ),
+    );
+      },
     );
   }
 }
