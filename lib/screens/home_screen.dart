@@ -7,7 +7,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as path;
 
-import '../slideshow_view_hooks.dart';
+import 'slideshow_screen.dart';
 import '../slide_item.dart';
 
 class MyHomePage extends StatefulWidget {
@@ -363,7 +363,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if (selectedFolderPath != null && slideshowData.isNotEmpty) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => SlideshowViewHooks(
+          builder: (context) => SlideshowScreen(
             folderPath: selectedFolderPath!,
             slideshowData: slideshowData,
           ),
@@ -376,7 +376,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if (selectedFolderPath != null && slideshowData.isNotEmpty) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (context) => SlideshowViewHooks(
+          builder: (context) => SlideshowScreen(
             folderPath: selectedFolderPath!,
             slideshowData: slideshowData,
             startIndex: startIndex,

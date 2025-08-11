@@ -4,7 +4,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as path;
-import 'slide_item.dart';
+import '../slide_item.dart';
 
 // Provider定義
 final slideshowSettingsProvider = ChangeNotifierProvider.autoDispose.family<SlideshowSettingsNotifier, SlideshowSettingsParams>((ref, params) {
@@ -138,12 +138,12 @@ class SlideshowSettingsNotifier extends ChangeNotifier {
   }
 }
 
-class SlideshowSettingsScreenHooks extends HookConsumerWidget {
+class SettingScreen extends HookConsumerWidget {
   final String folderPath;
   final List<SlideItem> slideshowData;
   final int currentSlideIndex;
 
-  const SlideshowSettingsScreenHooks({
+  const SettingScreen({
     super.key,
     required this.folderPath,
     required this.slideshowData,
@@ -722,4 +722,4 @@ class SlideshowSettingsScreenHooks extends HookConsumerWidget {
       keep: () => '継続',
     ) ?? '未設定';
   }
-} 
+}
