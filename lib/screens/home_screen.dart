@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:desktop_drop/desktop_drop.dart';
-import 'package:path/path.dart' as path;
 import 'dart:io';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
@@ -20,7 +19,7 @@ class MyHomePage extends HookConsumerWidget {
     
     useEffect(() {
       // キーボードショートカットの設定
-      final handler = (KeyEvent event) {
+      handler(KeyEvent event) {
         if (event is KeyDownEvent) {
           if (HardwareKeyboard.instance.isMetaPressed &&
               event.logicalKey == LogicalKeyboardKey.keyO) {
@@ -29,7 +28,7 @@ class MyHomePage extends HookConsumerWidget {
           }
         }
         return false;
-      };
+      }
       
       HardwareKeyboard.instance.addHandler(handler);
       
