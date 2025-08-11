@@ -7,6 +7,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 import 'home_screen_viewmodel.dart';
 import 'slideshow_screen.dart';
+import '../providers/home_screen_viewmodel_provider.dart';
 
 class MyHomePage extends HookConsumerWidget {
   const MyHomePage({super.key, required this.title});
@@ -15,7 +16,7 @@ class MyHomePage extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final viewModel = useMemoized(() => HomeScreenViewModel());
+    final viewModel = ref.watch(homeScreenViewModelProvider);
     
     useEffect(() {
       // キーボードショートカットの設定
