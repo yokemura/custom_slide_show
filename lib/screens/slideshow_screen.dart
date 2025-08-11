@@ -2,16 +2,13 @@ import 'package:custom_slide_show/screens/setting_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'dart:ui' as ui;
 import 'dart:async';
 import '../slide_item.dart';
-import '../slideshow_repository.dart';
 import '../widgets/caption_display.dart';
 import '../widgets/slideshow_controls_hooks.dart';
 import '../constants/slideshow_constants.dart';
 import '../utils/slide_utils.dart';
 import '../widgets/slide_layer/slide_layer.dart';
-import 'slideshow_screen_viewmodel.dart';
 import '../providers/slideshow_screen_viewmodel_provider.dart';
 
 // 定数定義はSlideshowConstantsクラスに移動済み
