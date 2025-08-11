@@ -10,7 +10,10 @@ class SlideshowRepository {
   String? _filePath;
   
   // computed propertyとして初期化状態を判定
-  bool get _isInitialized => _filePath != null;
+  bool get isInitialized => _filePath != null;
+  
+  // ファイルパスを取得
+  String? get filePath => _filePath;
   
   // 初期化：ファイルパスを指定してJSON読み込みとメモリ配置
   Future<void> initialize(String filePath) async {
@@ -39,7 +42,7 @@ class SlideshowRepository {
   
   // データ取り出し：メモリ上のデータを同期的に返す
   List<SlideItem> getSlideshowData() {
-    if (!_isInitialized) {
+    if (!isInitialized) {
       throw SlideshowRepositoryException('Repositoryが初期化されていません');
     }
     return List.unmodifiable(_slideshowData);
@@ -47,7 +50,7 @@ class SlideshowRepository {
   
   // データ保存：新しいデータでメモリ更新とJSON書き出し
   Future<void> saveSlideshowData(List<SlideItem> data) async {
-    if (!_isInitialized) {
+    if (!isInitialized) {
       throw SlideshowRepositoryException('Repositoryが初期化されていません');
     }
     
