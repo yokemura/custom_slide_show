@@ -1,202 +1,246 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'
-    show HardwareKeyboard, KeyDownEvent, LogicalKeyboardKey, MethodChannel;
-import 'package:file_picker/file_picker.dart';
+import 'package:flutter/services.dart';
 import 'package:desktop_drop/desktop_drop.dart';
-import 'dart:convert';
-import 'dart:io';
 import 'package:path/path.dart' as path;
+import 'dart:io';
+import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 
+import 'home_screen_viewmodel.dart';
 import 'slideshow_screen.dart';
-import '../slide_item.dart';
 
-class MyHomePage extends StatefulWidget {
+class MyHomePage extends HookConsumerWidget {
   const MyHomePage({super.key, required this.title});
 
   final String title;
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  String? selectedFolderPath;
-  List<SlideItem> slideshowData = [];
-  bool isLoading = false;
-  static const MethodChannel _channel =
-      MethodChannel('custom_slide_show/file_picker');
-  
-  // Keyboard handler reference
-  bool _keyboardHandler(KeyEvent event) {
-    if (event is KeyDownEvent) {
-      if (HardwareKeyboard.instance.isMetaPressed &&
-          event.logicalKey == LogicalKeyboardKey.keyO) {
-        _openFolder();
-        return true;
-      }
-    }
-    return false;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    // Set up keyboard shortcuts
-    _setupKeyboardShortcuts();
-  }
-
-  void _setupKeyboardShortcuts() {
-    // Listen for Cmd+O shortcut
-    HardwareKeyboard.instance.addHandler(_keyboardHandler);
-  }
-
-
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.folder_open),
-            onPressed: _openFolder,
-            tooltip: 'Open Folder',
+  Widget build(BuildContext context, WidgetRef ref) {
+    final viewModel = useMemoized(() => HomeScreenViewModel());
+    
+    useEffect(() {
+      // キーボードショートカットの設定
+      final handler = (KeyEvent event) {
+        if (event is KeyDownEvent) {
+          if (HardwareKeyboard.instance.isMetaPressed &&
+              event.logicalKey == LogicalKeyboardKey.keyO) {
+            viewModel.openFolder();
+            return true;
+          }
+        }
+        return false;
+      };
+      
+      HardwareKeyboard.instance.addHandler(handler);
+      
+      return () {
+        HardwareKeyboard.instance.removeHandler(handler);
+      };
+    }, []);
+    
+    return ListenableBuilder(
+      listenable: viewModel,
+      builder: (context, child) {
+        return Scaffold(
+          appBar: AppBar(
+            backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+            title: Text(title),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.folder_open),
+                onPressed: viewModel.openFolder,
+                tooltip: 'Open Folder',
+              ),
+            ],
           ),
-        ],
-      ),
-      body: _buildBody(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _openFolder,
-        tooltip: 'Open Folder',
-        child: const Icon(Icons.folder_open),
-      ),
+          body: _buildBody(context, viewModel),
+          floatingActionButton: FloatingActionButton(
+            onPressed: viewModel.openFolder,
+            tooltip: 'Open Folder',
+            child: const Icon(Icons.folder_open),
+          ),
+        );
+      },
     );
   }
-
-  Widget _buildBody() {
-    if (isLoading) {
+  
+  Widget _buildBody(BuildContext context, HomeScreenViewModel viewModel) {
+    // エラー表示
+    if (viewModel.error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Colors.red,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'エラーが発生しました',
+              style: const TextStyle(fontSize: 18, color: Colors.red),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${viewModel.error}',
+              style: const TextStyle(color: Colors.red),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                // エラーをクリアして再試行
+                viewModel.clearError();
+              },
+              child: const Text('再試行'),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    // ローディング中
+    if (viewModel.isLoading) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularProgressIndicator(),
             SizedBox(height: 16),
-            Text('Processing folder...'),
+            Text('フォルダを処理中...'),
           ],
         ),
       );
     }
-
-    if (selectedFolderPath == null) {
-      return DropTarget(
-        onDragDone: (detail) async {
-          if (detail.files.isNotEmpty) {
-            final file = detail.files.first;
-            final filePath = file.path;
-            
-            // Check if it's a directory
-            final directory = Directory(filePath);
-            if (await directory.exists()) {
-              await _processSelectedFolder(filePath);
-            } else {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please drop a folder, not a file'),
-                    backgroundColor: Colors.orange,
-                  ),
-                );
-              }
+    
+    // イニシャライズ前
+    if (!viewModel.isInitialized) {
+      return _buildUninitializedView(context, viewModel);
+    }
+    
+    // イニシャライズ後
+    return _buildInitializedView(context, viewModel);
+  }
+  
+  // イニシャライズ前の画面
+  Widget _buildUninitializedView(BuildContext context, HomeScreenViewModel viewModel) {
+    return DropTarget(
+      onDragDone: (detail) async {
+        if (detail.files.isNotEmpty) {
+          final file = detail.files.first;
+          final filePath = file.path;
+          
+          // ディレクトリかチェック
+          final directory = Directory(filePath);
+          if (await directory.exists()) {
+            await viewModel.initializeFromFolder(filePath);
+          } else {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('フォルダをドロップしてください'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
             }
           }
-        },
-        onDragEntered: (detail) {
-          // Drag entered
-        },
-        onDragExited: (detail) {
-          // Drag exited
-        },
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: Colors.grey.shade300,
-                    width: 3,
-                    style: BorderStyle.solid,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  color: Colors.grey.withOpacity(0.05),
+        }
+      },
+      onDragEntered: (detail) {
+        // ドラッグエンター
+      },
+      onDragExited: (detail) {
+        // ドラッグエグジット
+      },
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Colors.grey.shade300,
+                  width: 3,
+                  style: BorderStyle.solid,
                 ),
-                child: const Column(
-                  children: [
-                    Icon(
-                      Icons.folder_open,
-                      size: 64,
+                borderRadius: BorderRadius.circular(16),
+                color: Colors.grey.withOpacity(0.05),
+              ),
+              child: const Column(
+                children: [
+                  Icon(
+                    Icons.folder_open,
+                    size: 64,
+                    color: Colors.grey,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'フォルダが選択されていません',
+                    style: TextStyle(
+                      fontSize: 18, 
+                      color: Colors.grey,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    '画像を含むフォルダをここにドラッグ＆ドロップ\nまたは下のボタンをクリックしてください',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
                       color: Colors.grey,
                     ),
-                    SizedBox(height: 16),
-                    Text(
-                      'No folder selected',
-                      style: TextStyle(
-                        fontSize: 18, 
-                        color: Colors.grey,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Drag and drop a folder with images here\nor click the button below',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: _openFolder,
-                icon: const Icon(Icons.folder_open),
-                label: const Text('Open Folder'),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: viewModel.openFolder,
+              icon: const Icon(Icons.folder_open),
+              label: const Text('フォルダを開く'),
+            ),
+          ],
         ),
-      );
-    }
-
+      ),
+    );
+  }
+  
+  // イニシャライズ後の画面
+  Widget _buildInitializedView(BuildContext context, HomeScreenViewModel viewModel) {
+    final slideshowData = viewModel.slideshowData;
+    
     if (slideshowData.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-              const Icon(
-                Icons.image_not_supported,
-                size: 64,
-                color: Colors.grey,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'No images found in: ${path.basename(selectedFolderPath!)}',
-                style: const TextStyle(fontSize: 18, color: Colors.grey),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Make sure the folder contains image files',
-                style: TextStyle(color: Colors.grey),
-              ),
-            ],
+          children: [
+            const Icon(
+              Icons.image_not_supported,
+              size: 64,
+              color: Colors.grey,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              '画像が見つかりません',
+              style: TextStyle(fontSize: 18, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'フォルダに画像ファイルが含まれていることを確認してください',
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: viewModel.openFolder,
+              child: const Text('別のフォルダを選択'),
+            ),
+          ],
         ),
       );
     }
-
+    
     return Column(
       children: [
         Container(
@@ -206,14 +250,14 @@ class _MyHomePageState extends State<MyHomePage> {
               const Icon(Icons.folder, color: Colors.blue),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  'Folder: ${path.basename(selectedFolderPath!)}',
-                  style: const TextStyle(
+                child: const Text(
+                  'フォルダが選択されています',
+                  style: TextStyle(
                       fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
               Text(
-                '${slideshowData.length} images',
+                '${slideshowData.length} 枚の画像',
                 style: const TextStyle(color: Colors.grey),
               ),
             ],
@@ -222,14 +266,14 @@ class _MyHomePageState extends State<MyHomePage> {
         Expanded(
           child: Column(
             children: [
-              // Start slideshow button
+              // スライドショー開始ボタン
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 child: ElevatedButton.icon(
-                  onPressed: slideshowData.isNotEmpty ? _startSlideshow : null,
+                  onPressed: slideshowData.isNotEmpty ? () => _startSlideshow(context, viewModel) : null,
                   icon: const Icon(Icons.play_arrow),
-                  label: const Text('Start Slide Show'),
+                  label: const Text('スライドショー開始'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
@@ -238,8 +282,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 ),
               ),
-
-              // Image list
+              
+              // 画像リスト
               Expanded(
                 child: ListView.builder(
                   padding: const EdgeInsets.all(16),
@@ -247,14 +291,14 @@ class _MyHomePageState extends State<MyHomePage> {
                   itemBuilder: (context, index) {
                     final item = slideshowData[index];
                     final imageName = item.image;
-
+                    
                     return Card(
                       margin: const EdgeInsets.only(bottom: 8),
                       child: ListTile(
                         leading: const Icon(Icons.image, color: Colors.blue),
                         title: Text(imageName),
                         subtitle: Text(
-                            'Image ${index + 1} of ${slideshowData.length}'),
+                            '画像 ${index + 1} / ${slideshowData.length}'),
                         trailing: Text(
                           '${index + 1}',
                           style: const TextStyle(
@@ -263,7 +307,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             color: Colors.blue,
                           ),
                         ),
-                        onTap: () => _startSlideshowFromIndex(index),
+                        onTap: () => _startSlideshowFromIndex(context, viewModel, index),
                       ),
                     );
                   },
@@ -275,178 +319,33 @@ class _MyHomePageState extends State<MyHomePage> {
       ],
     );
   }
-
-  Future<void> _openFolder() async {
-    setState(() {
-      isLoading = true;
-    });
-
-    try {
-      String? result;
-
-      try {
-        result = await _channel.invokeMethod<String>('pickFolder');
-      } catch (e) {
-        result = await FilePicker.platform.getDirectoryPath(
-          dialogTitle: 'Select a folder containing images for your slide show',
-        );
-      }
-
-      if (result != null) {
-        await _processSelectedFolder(result);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error opening folder: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _processSelectedFolder(String folderPath) async {
-    final slideshowPath = path.join(folderPath, 'slideshow.json');
-    final slideshowFile = File(slideshowPath);
-
-    // Check if slideshow.json already exists
-    if (await slideshowFile.exists()) {
-      await _loadExistingSlideshow(slideshowFile);
-      return;
-    }
-
-    // Create new slideshow.json
-    await _createNewSlideshow(folderPath, slideshowFile);
-  }
-
-  Future<void> _loadExistingSlideshow(File slideshowFile) async {
-    try {
-      final jsonString = await slideshowFile.readAsString();
-      final data = json.decode(jsonString) as List;
-
-      if (mounted) {
-        setState(() {
-          selectedFolderPath = path.dirname(slideshowFile.path);
-          slideshowData = data
-              .map((item) => SlideItem.fromJson(item as Map<String, dynamic>))
-              .toList();
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Loaded existing slideshow.json'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading slideshow.json: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  void _startSlideshow() {
-    if (selectedFolderPath != null && slideshowData.isNotEmpty) {
+  
+  void _startSlideshow(BuildContext context, HomeScreenViewModel viewModel) {
+    final slideshowData = viewModel.slideshowData;
+    if (slideshowData.isNotEmpty) {
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => SlideshowScreen(
-            folderPath: selectedFolderPath!,
+            folderPath: viewModel.selectedFolderPath ?? '',
             slideshowData: slideshowData,
           ),
         ),
       );
     }
   }
-
-  void _startSlideshowFromIndex(int startIndex) {
-    if (selectedFolderPath != null && slideshowData.isNotEmpty) {
+  
+  void _startSlideshowFromIndex(BuildContext context, HomeScreenViewModel viewModel, int startIndex) {
+    final slideshowData = viewModel.slideshowData;
+    if (slideshowData.isNotEmpty) {
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => SlideshowScreen(
-            folderPath: selectedFolderPath!,
+            folderPath: viewModel.selectedFolderPath ?? '',
             slideshowData: slideshowData,
             startIndex: startIndex,
           ),
         ),
       );
-    }
-  }
-
-  Future<void> _createNewSlideshow(
-      String folderPath, File slideshowFile) async {
-    try {
-      final directory = Directory(folderPath);
-      final imageExtensions = [
-        'jpg',
-        'jpeg',
-        'png',
-        'gif',
-        'bmp',
-        'tiff',
-        'webp'
-      ];
-      final List<String> imageFiles = [];
-
-      await for (final entity in directory.list()) {
-        if (entity is File) {
-          final extension =
-              path.extension(entity.path).toLowerCase().replaceAll('.', '');
-          if (imageExtensions.contains(extension)) {
-            imageFiles.add(path.basename(entity.path));
-          }
-        }
-      }
-
-      // Sort files by name (ascending order as in Finder)
-      imageFiles.sort();
-
-      // Create SlideItem objects
-      final slideshowData = imageFiles
-          .map((imageFile) => SlideItem(image: imageFile))
-          .toList();
-
-      // Convert to JSON with pretty formatting
-      final jsonString = const JsonEncoder.withIndent('  ').convert(
-          slideshowData.map((item) => item.toFileJson()).toList());
-      await slideshowFile.writeAsString(jsonString);
-
-      if (mounted) {
-        setState(() {
-          selectedFolderPath = folderPath;
-          this.slideshowData = slideshowData;
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content:
-                Text('Created slideshow.json with ${imageFiles.length} images'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error creating slideshow.json: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
     }
   }
 }
