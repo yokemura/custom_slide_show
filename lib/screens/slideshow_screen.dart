@@ -1,25 +1,25 @@
-import 'package:custom_slide_show/slideshow_settings_screen_hooks.dart';
+import 'package:custom_slide_show/screens/setting_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'dart:ui' as ui;
 import 'dart:async';
-import 'slide_item.dart';
-import 'providers/slideshow_provider.dart';
-import 'providers/animation_provider.dart';
-import 'widgets/caption_display.dart';
-import 'widgets/slideshow_controls_hooks.dart';
+import '../slide_item.dart';
+import '../providers/slideshow_provider.dart';
+import '../providers/animation_provider.dart';
+import '../widgets/caption_display.dart';
+import '../widgets/slideshow_controls_hooks.dart';
 
 // 定数定義
 const double _defaultSlideDuration = 8.0; // デフォルトのスライド表示時間（秒）
 const double _fadeAnimationDuration = 1.0; // フェードアニメーション時間（秒）
 
-class SlideshowViewHooks extends HookConsumerWidget {
+class SlideshowScreen extends HookConsumerWidget {
   final String folderPath;
   final List<SlideItem> slideshowData;
   final int? startIndex;
 
-  const SlideshowViewHooks({
+  const SlideshowScreen({
     super.key,
     required this.folderPath,
     required this.slideshowData,
@@ -205,7 +205,7 @@ class SlideshowViewHooks extends HookConsumerWidget {
                 onSettings: () async {
                   final result = await Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (context) => SlideshowSettingsScreenHooks(
+                      builder: (context) => SettingScreen(
                         folderPath: folderPath,
                         slideshowData: slideshowData,
                         currentSlideIndex: slideshowState.currentIndex,
@@ -316,4 +316,4 @@ class _SlideLayer extends StatelessWidget {
       ),
     );
   }
-} 
+}

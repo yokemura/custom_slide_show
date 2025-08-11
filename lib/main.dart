@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
-import 'screens/home_screen.dart';
-
 void main() {
   runApp(
     const ProviderScope(
@@ -34,6 +32,14 @@ class MyHomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MyHomePage(title: 'Custom Slide Show');
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: Text(title),
+      ),
+      body: const Center(
+        child: Text('Welcome to Custom Slide Show'),
+      ),
+    );
   }
 }
