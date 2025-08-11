@@ -12,25 +12,24 @@ import '../constants/slideshow_constants.dart';
 import '../utils/slide_utils.dart';
 import '../widgets/slide_layer/slide_layer.dart';
 import 'slideshow_screen_viewmodel.dart';
+import '../providers/slideshow_screen_viewmodel_provider.dart';
 
 // 定数定義はSlideshowConstantsクラスに移動済み
 
 class SlideshowScreen extends HookConsumerWidget {
   final String folderPath;
-  final SlideshowRepository repository;
   final int? startIndex;
 
   const SlideshowScreen({
     super.key,
     required this.folderPath,
-    required this.repository,
     this.startIndex,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // ViewModelを作成
-    final viewModel = SlideshowScreenViewModel(repository);
+    // ViewModelをProviderから取得
+    final viewModel = ref.watch(slideshowScreenViewModelProvider(folderPath));
 
     // コントロール表示状態を管理
     final isControlsVisible = useState(true);
