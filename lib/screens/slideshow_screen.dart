@@ -31,16 +31,11 @@ class SlideshowScreen extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // ViewModelを作成
     final viewModel = SlideshowScreenViewModel(repository);
-    
-    // ListenableBuilderでViewModelの状態を監視
-    return ListenableBuilder(
-      listenable: viewModel,
-      builder: (context, child) {
 
     // コントロール表示状態を管理
     final isControlsVisible = useState(true);
     final controlsTimer = useRef<Timer?>(null);
-    
+
     // コントロール表示/非表示の関数
     final showControls = useCallback(() {
       isControlsVisible.value = true;
@@ -49,14 +44,12 @@ class SlideshowScreen extends HookConsumerWidget {
         isControlsVisible.value = false;
       });
     }, []);
-    
 
-    
     // 画面タップ時の処理
     final handleTap = useCallback(() {
       showControls();
     }, [showControls]);
-    
+
     // コンポーネントのクリーンアップ
     useEffect(() {
       return () {
@@ -77,7 +70,10 @@ class SlideshowScreen extends HookConsumerWidget {
     // アニメーションコントローラー
     final panController = useAnimationController(
       duration: Duration(
-        milliseconds: ((viewModel.currentSlide?.duration ?? SlideshowConstants.defaultSlideDuration) * 1000).round(),
+        milliseconds: ((viewModel.currentSlide?.duration ??
+                    SlideshowConstants.defaultSlideDuration) *
+                1000)
+            .round(),
       ),
     );
     final fadeController = useAnimationController(
@@ -107,13 +103,17 @@ class SlideshowScreen extends HookConsumerWidget {
 
     // スライド切り替えの処理
     useEffect(() {
-      if (viewModel.currentSlide != null && viewModel.slideshowData.isNotEmpty) {
+      if (viewModel.currentSlide != null &&
+          viewModel.slideshowData.isNotEmpty) {
         // アニメーションコントローラーのdurationを更新
         final newDuration = Duration(
-          milliseconds: ((viewModel.currentSlide!.duration ?? SlideshowConstants.defaultSlideDuration) * 1000).round(),
+          milliseconds: ((viewModel.currentSlide!.duration ??
+                      SlideshowConstants.defaultSlideDuration) *
+                  1000)
+              .round(),
         );
         panController.duration = newDuration;
-        
+
         // パンアニメーション開始
         panController.forward().then((_) {
           // パンアニメーション完了後、次のスライドがある場合はフェードアニメーション開始
@@ -122,7 +122,7 @@ class SlideshowScreen extends HookConsumerWidget {
               // フェードアニメーション完了後、次のスライドに移動
               Future.microtask(() {
                 viewModel.goToNextSlide();
-                
+
                 // アニメーションコントローラーをリセット
                 panController.reset();
                 fadeController.reset();
@@ -134,108 +134,120 @@ class SlideshowScreen extends HookConsumerWidget {
       return null;
     }, [viewModel.currentSlideIndex, viewModel.slideshowData.isNotEmpty]);
 
-    // 画面サイズを取得
-    final screenSize = MediaQuery.of(context).size;
+    // ListenableBuilderでViewModelの状態を監視
+    return ListenableBuilder(
+      listenable: viewModel,
+      builder: (context, child) {
+        // 画面サイズを取得
+        final screenSize = MediaQuery.of(context).size;
 
-    if (viewModel.slideshowData.isEmpty) {
-      return const Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: Text(
-            '表示する画像がありません',
-            style: TextStyle(color: Colors.white),
-          ),
-        ),
-      );
-    }
-
-    return GestureDetector(
-      onTap: handleTap,
-      child: Scaffold(
-        backgroundColor: Colors.black,
-        body: Stack(
-          children: [
-            // 現在のスライド
-            if (viewModel.currentSlide != null)
-              Transform.translate(
-                offset: Offset(
-                  panAnimation.dx * screenSize.width,
-                  panAnimation.dy * screenSize.height,
-                ),
-                child: SlideLayer(
-                  folderPath: folderPath,
-                  slideData: viewModel.currentSlide!,
-                  screenSize: screenSize,
-                ),
+        if (viewModel.slideshowData.isEmpty) {
+          return const Scaffold(
+            backgroundColor: Colors.black,
+            body: Center(
+              child: Text(
+                '表示する画像がありません',
+                style: TextStyle(color: Colors.white),
               ),
-
-            // 次のスライド（重ねて表示）
-            if (viewModel.hasNextSlide && viewModel.nextSlide != null)
-              Opacity(
-                opacity: fadeAnimation,
-                child: Transform.translate(
-                  offset: viewModel.nextSlide!.pan != null
-                      ? Offset(
-                          SlideUtils.calculatePanOffset(viewModel.nextSlide!).dx * screenSize.width,
-                          SlideUtils.calculatePanOffset(viewModel.nextSlide!).dy * screenSize.height,
-                        )
-                      : Offset.zero,
-                  child: SlideLayer(
-                    folderPath: folderPath,
-                    slideData: viewModel.nextSlide!,
-                    screenSize: screenSize,
-                  ),
-                ),
-              ),
-
-            // キャプション表示
-            CaptionDisplay(
-              caption: viewModel.currentCaption,
             ),
+          );
+        }
 
-            // コントロールレイヤー（表示制御は親が管理）
-            if (isControlsVisible.value)
-              SlideshowControlsHooks(
-                onBack: () => Navigator.of(context).pop(),
-                onPreviousSlide: () {
-                  if (viewModel.hasPreviousSlide) {
-                    viewModel.goToPreviousSlide();
-                  }
-                },
-                onNextSlide: () {
-                  if (viewModel.hasNextSlide) {
-                    viewModel.goToNextSlide();
-                  }
-                },
-                onSettings: () async {
-                  final result = await Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => SettingScreen(
+        return GestureDetector(
+          onTap: handleTap,
+          child: Scaffold(
+            backgroundColor: Colors.black,
+            body: Stack(
+              children: [
+                // 現在のスライド
+                if (viewModel.currentSlide != null)
+                  Transform.translate(
+                    offset: Offset(
+                      panAnimation.dx * screenSize.width,
+                      panAnimation.dy * screenSize.height,
+                    ),
+                    child: SlideLayer(
+                      folderPath: folderPath,
+                      slideData: viewModel.currentSlide!,
+                      screenSize: screenSize,
+                    ),
+                  ),
+
+                // 次のスライド（重ねて表示）
+                if (viewModel.hasNextSlide && viewModel.nextSlide != null)
+                  Opacity(
+                    opacity: fadeAnimation,
+                    child: Transform.translate(
+                      offset: viewModel.nextSlide!.pan != null
+                          ? Offset(
+                              SlideUtils.calculatePanOffset(
+                                          viewModel.nextSlide!)
+                                      .dx *
+                                  screenSize.width,
+                              SlideUtils.calculatePanOffset(
+                                          viewModel.nextSlide!)
+                                      .dy *
+                                  screenSize.height,
+                            )
+                          : Offset.zero,
+                      child: SlideLayer(
                         folderPath: folderPath,
-                        slideshowData: viewModel.slideshowData,
-                        currentSlideIndex: viewModel.currentSlideIndex,
+                        slideData: viewModel.nextSlide!,
+                        screenSize: screenSize,
                       ),
                     ),
-                  );
+                  ),
 
-                  if (result != null && result is Map<String, dynamic>) {
-                    final updatedSlideshowData = result['slideshowData'] as List<SlideItem>;
-                    final currentSlideIndex = result['currentSlideIndex'] as int;
-                    
-                    // スライドショーデータを更新
-                    viewModel.updateSlideshowData(updatedSlideshowData);
-                    
-                    // 現在のスライドインデックスに移動
-                    viewModel.goToSlide(currentSlideIndex);
-                  }
-                },
-                currentIndex: viewModel.currentSlideIndex + 1,
-                totalSlides: viewModel.totalSlides,
-              ),
-          ],
-        ),
-      ),
-    );
+                // キャプション表示
+                CaptionDisplay(
+                  caption: viewModel.currentCaption,
+                ),
+
+                // コントロールレイヤー（表示制御は親が管理）
+                if (isControlsVisible.value)
+                  SlideshowControlsHooks(
+                    onBack: () => Navigator.of(context).pop(),
+                    onPreviousSlide: () {
+                      if (viewModel.hasPreviousSlide) {
+                        viewModel.goToPreviousSlide();
+                      }
+                    },
+                    onNextSlide: () {
+                      if (viewModel.hasNextSlide) {
+                        viewModel.goToNextSlide();
+                      }
+                    },
+                    onSettings: () async {
+                      final result = await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => SettingScreen(
+                            folderPath: folderPath,
+                            slideshowData: viewModel.slideshowData,
+                            currentSlideIndex: viewModel.currentSlideIndex,
+                          ),
+                        ),
+                      );
+
+                      if (result != null && result is Map<String, dynamic>) {
+                        final updatedSlideshowData =
+                            result['slideshowData'] as List<SlideItem>;
+                        final currentSlideIndex =
+                            result['currentSlideIndex'] as int;
+
+                        // スライドショーデータを更新
+                        viewModel.updateSlideshowData(updatedSlideshowData);
+
+                        // 現在のスライドインデックスに移動
+                        viewModel.goToSlide(currentSlideIndex);
+                      }
+                    },
+                    currentIndex: viewModel.currentSlideIndex + 1,
+                    totalSlides: viewModel.totalSlides,
+                  ),
+              ],
+            ),
+          ),
+        );
       },
     );
   }
