@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'
     show HardwareKeyboard, KeyDownEvent, LogicalKeyboardKey, MethodChannel;
 import 'package:file_picker/file_picker.dart';
-import 'package:desktop_drop/desktop_drop.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as path;
