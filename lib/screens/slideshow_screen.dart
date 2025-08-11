@@ -9,10 +9,11 @@ import '../providers/slideshow_provider.dart';
 import '../providers/animation_provider.dart';
 import '../widgets/caption_display.dart';
 import '../widgets/slideshow_controls_hooks.dart';
+import '../constants/slideshow_constants.dart';
+import '../utils/slide_utils.dart';
+import '../widgets/slide_layer/slide_layer.dart';
 
-// 定数定義
-const double _defaultSlideDuration = 8.0; // デフォルトのスライド表示時間（秒）
-const double _fadeAnimationDuration = 1.0; // フェードアニメーション時間（秒）
+// 定数定義はSlideshowConstantsクラスに移動済み
 
 class SlideshowScreen extends HookConsumerWidget {
   final String folderPath;
@@ -72,12 +73,12 @@ class SlideshowScreen extends HookConsumerWidget {
     // アニメーションコントローラー
     final panController = useAnimationController(
       duration: Duration(
-        milliseconds: ((slideshowState.currentSlide?.duration ?? _defaultSlideDuration) * 1000).round(),
+        milliseconds: ((slideshowState.currentSlide?.duration ?? SlideshowConstants.defaultSlideDuration) * 1000).round(),
       ),
     );
     final fadeController = useAnimationController(
       duration: Duration(
-        milliseconds: (_fadeAnimationDuration * 1000).round(),
+        milliseconds: (SlideshowConstants.fadeAnimationDuration * 1000).round(),
       ),
     );
 
@@ -85,10 +86,10 @@ class SlideshowScreen extends HookConsumerWidget {
     final panAnimation = useAnimation(
       Tween<Offset>(
         begin: slideshowState.currentSlide != null
-            ? calculatePanOffset(slideshowState.currentSlide!)
+            ? SlideUtils.calculatePanOffset(slideshowState.currentSlide!)
             : Offset.zero,
         end: slideshowState.currentSlide != null
-            ? calculatePanEndOffset(slideshowState.currentSlide!)
+            ? SlideUtils.calculatePanEndOffset(slideshowState.currentSlide!)
             : Offset.zero,
       ).animate(panController),
     );
@@ -105,7 +106,7 @@ class SlideshowScreen extends HookConsumerWidget {
       if (slideshowState.currentSlide != null && slideshowState.slideshowData.isNotEmpty) {
         // アニメーションコントローラーのdurationを更新
         final newDuration = Duration(
-          milliseconds: ((slideshowState.currentSlide!.duration ?? _defaultSlideDuration) * 1000).round(),
+          milliseconds: ((slideshowState.currentSlide!.duration ?? SlideshowConstants.defaultSlideDuration) * 1000).round(),
         );
         panController.duration = newDuration;
         
@@ -157,7 +158,7 @@ class SlideshowScreen extends HookConsumerWidget {
                   panAnimation.dx * screenSize.width,
                   panAnimation.dy * screenSize.height,
                 ),
-                child: _SlideLayer(
+                child: SlideLayer(
                   folderPath: folderPath,
                   slideData: slideshowState.currentSlide!,
                   screenSize: screenSize,
@@ -171,11 +172,11 @@ class SlideshowScreen extends HookConsumerWidget {
                 child: Transform.translate(
                   offset: slideshowState.nextSlide!.pan != null
                       ? Offset(
-                          calculatePanOffset(slideshowState.nextSlide!).dx * screenSize.width,
-                          calculatePanOffset(slideshowState.nextSlide!).dy * screenSize.height,
+                          SlideUtils.calculatePanOffset(slideshowState.nextSlide!).dx * screenSize.width,
+                          SlideUtils.calculatePanOffset(slideshowState.nextSlide!).dy * screenSize.height,
                         )
                       : Offset.zero,
-                  child: _SlideLayer(
+                  child: SlideLayer(
                     folderPath: folderPath,
                     slideData: slideshowState.nextSlide!,
                     screenSize: screenSize,
@@ -229,90 +230,6 @@ class SlideshowScreen extends HookConsumerWidget {
               ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// スライドレイヤーウィジェット
-class _SlideLayer extends StatelessWidget {
-  final String folderPath;
-  final SlideItem slideData;
-  final Size screenSize;
-
-  const _SlideLayer({
-    required this.folderPath,
-    required this.slideData,
-    required this.screenSize,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scale = slideData.scale ?? 1.0;
-    final imagePath = '$folderPath/${slideData.image}';
-    
-    return SizedBox(
-      width: screenSize.width,
-      height: screenSize.height,
-      child: Stack(
-        children: [
-          // Background blurred image
-          Positioned.fill(
-            child: Center(
-              child: Transform.scale(
-                scale: scale,
-                child: ImageFiltered(
-                  imageFilter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                  child: Image.asset(
-                    imagePath,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Colors.grey[800],
-                        child: const Center(
-                          child: Icon(
-                            Icons.image_not_supported,
-                            color: Colors.white,
-                            size: 64,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // Main image
-          Positioned.fill(
-            child: Center(
-              child: Transform.scale(
-                scale: scale,
-                child: Image.asset(
-                  imagePath,
-                  fit: BoxFit.contain,
-                  width: double.infinity,
-                  height: double.infinity,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey[800],
-                      child: const Center(
-                        child: Icon(
-                          Icons.image_not_supported,
-                          color: Colors.white,
-                          size: 64,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
