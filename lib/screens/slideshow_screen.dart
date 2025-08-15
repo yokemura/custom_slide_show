@@ -217,8 +217,6 @@ class SlideshowScreen extends HookConsumerWidget {
                       final result = await Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (context) => SettingScreen(
-                            folderPath: folderPath,
-                            slideshowData: viewModel.slideshowData,
                             currentSlideIndex: viewModel.currentSlideIndex,
                           ),
                         ),
