@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'dart:async';
 import '../slide_item.dart';
 import '../constants/slideshow_constants.dart';
 import '../slideshow_repository.dart';
@@ -38,6 +39,7 @@ class SlideshowSettingsNotifier extends ChangeNotifier {
   List<SlideItem> _slideshowData = [];
   int _currentSlideIndex;
   final SlideshowRepository _repository;
+  Timer? _debounceTimer;
   
   SlideshowSettingsNotifier({
     required SlideshowRepository repository,
@@ -55,7 +57,7 @@ class SlideshowSettingsNotifier extends ChangeNotifier {
   SlideItem? get currentSlide => 
       _slideshowData.isNotEmpty ? _slideshowData[_currentSlideIndex] : null;
   
-  // スライドデータを更新（notifyListenersなし）
+  // スライドデータを更新（遅延通知）
   void updateSlideData({
     CaptionState? caption,
     double? duration,
@@ -67,16 +69,24 @@ class SlideshowSettingsNotifier extends ChangeNotifier {
     if (currentSlide == null) return;
     
     final updatedSlide = currentSlide!.copyWith(
-      caption: caption,
-      duration: duration,
-      scale: scale,
-      xoffset: xoffset,
-      yoffset: yoffset,
-      pan: pan,
+      caption: caption ?? currentSlide!.caption,        // nullの場合は既存値を保持
+      duration: duration ?? currentSlide!.duration,     // nullの場合は既存値を保持
+      scale: scale ?? currentSlide!.scale,             // nullの場合は既存値を保持
+      xoffset: xoffset ?? currentSlide!.xoffset,       // nullの場合は既存値を保持
+      yoffset: yoffset ?? currentSlide!.yoffset,       // nullの場合は既存値を保持
+      pan: pan ?? currentSlide!.pan,                   // nullの場合は既存値を保持
     );
 
     _slideshowData = List<SlideItem>.from(_slideshowData);
     _slideshowData[_currentSlideIndex] = updatedSlide;
+    
+    // 既存のタイマーをキャンセル
+    _debounceTimer?.cancel();
+    
+    // 300ms後に通知（入力中のリビルドを防ぐ）
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      notifyListeners();
+    });
   }
   
   // 数値フィールドの値を適切に処理する関数
@@ -144,5 +154,11 @@ class SlideshowSettingsNotifier extends ChangeNotifier {
   // Repositoryにデータを保存
   Future<void> saveToRepository() async {
     await _repository.saveSlideshowData(_slideshowData);
+  }
+  
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    super.dispose();
   }
 }
