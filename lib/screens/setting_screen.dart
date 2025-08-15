@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:path/path.dart' as path;
 import '../slide_item.dart';
+import '../constants/slideshow_constants.dart';
 
 // Provider定義
 final slideshowSettingsProvider = ChangeNotifierProvider.autoDispose.family<SlideshowSettingsNotifier, SlideshowSettingsParams>((ref, params) {
@@ -84,26 +85,36 @@ class SlideshowSettingsNotifier extends ChangeNotifier {
     _slideshowData[_currentSlideIndex] = updatedSlide;
   }
   
-  // 現在の入力値のバリデーション
-  String? validateCurrentInputs({
-    required String durationText,
-    required String scaleText,
-    required String xoffsetText,
-    required String yoffsetText,
-  }) {
+  // 数値フィールドの値を適切に処理する関数
+  double? parseNumericValue(String value, double invalidValue) {
+    if (value.trim().isEmpty) {
+      return null; // 空文字列は「意図的に設定しない」を意味する
+    }
+    
+    final parsed = double.tryParse(value);
+    if (parsed == null) {
+      return invalidValue; // 無効な値の場合は特殊な値を返す
+    }
+    
+    return parsed;
+  }
+  
+  // 現在の入力値のバリデーション（computed property）
+  String? get validationError {
+    if (currentSlide == null) return null;
+    
     final List<String> invalidFields = [];
     
-    // 空文字列は有効（未設定を意味する）
-    if (durationText.isNotEmpty && double.tryParse(durationText) == null) {
+    if (currentSlide!.duration == SlideshowConstants.invalidDuration) {
       invalidFields.add('表示時間');
     }
-    if (scaleText.isNotEmpty && double.tryParse(scaleText) == null) {
+    if (currentSlide!.scale == SlideshowConstants.invalidScale) {
       invalidFields.add('スケール');
     }
-    if (xoffsetText.isNotEmpty && double.tryParse(xoffsetText) == null) {
+    if (currentSlide!.xoffset == SlideshowConstants.invalidOffset) {
       invalidFields.add('Xオフセット');
     }
-    if (yoffsetText.isNotEmpty && double.tryParse(yoffsetText) == null) {
+    if (currentSlide!.yoffset == SlideshowConstants.invalidOffset) {
       invalidFields.add('Yオフセット');
     }
     
@@ -120,6 +131,20 @@ class SlideshowSettingsNotifier extends ChangeNotifier {
       _currentSlideIndex = index;
       notifyListeners();
     }
+  }
+  
+  // スライド切り替え時のバリデーションチェック（UI側で使用）
+  bool canSelectSlide(int index) {
+    if (index < 0 || index >= _slideshowData.length) {
+      return false;
+    }
+    
+    // 現在のスライドにバリデーションエラーがある場合は切り替えを許可しない
+    if (validationError != null) {
+      return false;
+    }
+    
+    return true;
   }
   
   // JSONファイルに保存
@@ -160,6 +185,19 @@ class SettingScreen extends HookConsumerWidget {
     );
     final notifier = ref.watch(slideshowSettingsProvider(params));
 
+    // 共通のエラー表示関数
+    void showValidationErrorSnackBar(String message) {
+      final displayMessage = '現在のスライドにエラーがあります: $message';
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(displayMessage),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+
     // TextEditingControllerを管理
     final textController = useTextEditingController();
     final durationController = useTextEditingController();
@@ -189,6 +227,12 @@ class SettingScreen extends HookConsumerWidget {
 
     // 戻るボタンの処理
     void onBackPressed() async {
+      // バリデーションエラーチェック
+      if (notifier.validationError != null) {
+        showValidationErrorSnackBar(notifier.validationError!);
+        return; // 操作をブロック
+      }
+      
       try {
         await notifier.saveToJsonFile();
         if (context.mounted) {
@@ -278,6 +322,12 @@ class SettingScreen extends HookConsumerWidget {
                           ? const Icon(Icons.check, color: Colors.blue)
                           : null,
                         onTap: () {
+                          // バリデーションエラーチェック
+                          if (notifier.validationError != null) {
+                            showValidationErrorSnackBar(notifier.validationError!);
+                            return; // 操作をブロック
+                          }
+                          
                           notifier.selectSlide(index);
                         },
                       );
@@ -351,6 +401,30 @@ class SettingScreen extends HookConsumerWidget {
           ),
           const SizedBox(height: 32),
 
+          // バリデーションエラー表示
+          if (notifier.validationError != null)
+            Container(
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                border: Border.all(color: Colors.red.shade200),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.error, color: Colors.red.shade600),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      notifier.validationError!,
+                      style: TextStyle(color: Colors.red.shade700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           // 画像ファイル名
           _buildTextField(
             label: '画像ファイル名',
@@ -406,7 +480,7 @@ class SettingScreen extends HookConsumerWidget {
             label: '表示時間 (秒)',
             controller: durationController,
             onChanged: (value) => notifier.updateSlideData(
-              duration: double.tryParse(value),
+              duration: notifier.parseNumericValue(value, SlideshowConstants.invalidDuration),
             ),
             hint: '例: 5.0',
           ),
@@ -417,7 +491,7 @@ class SettingScreen extends HookConsumerWidget {
             label: 'スケール',
             controller: scaleController,
             onChanged: (value) => notifier.updateSlideData(
-              scale: double.tryParse(value),
+              scale: notifier.parseNumericValue(value, SlideshowConstants.invalidScale),
             ),
             hint: '例: 1.2',
           ),
@@ -428,7 +502,7 @@ class SettingScreen extends HookConsumerWidget {
             label: 'Xオフセット',
             controller: xoffsetController,
             onChanged: (value) => notifier.updateSlideData(
-              xoffset: double.tryParse(value),
+              xoffset: notifier.parseNumericValue(value, SlideshowConstants.invalidOffset),
             ),
             hint: '例: 0.1',
           ),
@@ -439,7 +513,7 @@ class SettingScreen extends HookConsumerWidget {
             label: 'Yオフセット',
             controller: yoffsetController,
             onChanged: (value) => notifier.updateSlideData(
-              yoffset: double.tryParse(value),
+              yoffset: notifier.parseNumericValue(value, SlideshowConstants.invalidOffset),
             ),
             hint: '例: -0.05',
           ),
@@ -652,10 +726,10 @@ class SettingScreen extends HookConsumerWidget {
           Text('画像: ${slide.image}'),
           Text('キャプション: ${_getCaptionDisplayText(slide.caption)}'),
           if (slide.pan != null) Text('パン: ${slide.pan!.name}'),
-          if (slide.duration != null) Text('表示時間: ${slide.duration}秒'),
-          if (slide.scale != null) Text('スケール: ${slide.scale}'),
-          if (slide.xoffset != null) Text('Xオフセット: ${slide.xoffset}'),
-          if (slide.yoffset != null) Text('Yオフセット: ${slide.yoffset}'),
+          if (slide.duration != null) Text('表示時間: ${slide.duration == SlideshowConstants.invalidDuration ? "無効な値" : slide.duration}秒'),
+          if (slide.scale != null) Text('スケール: ${slide.scale == SlideshowConstants.invalidScale ? "無効な値" : slide.scale}'),
+          if (slide.xoffset != null) Text('Xオフセット: ${slide.xoffset == SlideshowConstants.invalidOffset ? "無効な値" : slide.xoffset}'),
+          if (slide.yoffset != null) Text('Yオフセット: ${slide.yoffset == SlideshowConstants.invalidOffset ? "無効な値" : slide.yoffset}'),
         ],
       ),
     );

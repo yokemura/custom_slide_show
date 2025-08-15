@@ -5,4 +5,9 @@ class SlideshowConstants {
   
   // フェードアニメーション時間（秒）
   static const double fadeAnimationDuration = 1.0;
+  
+  // 無効な数値の定数（あり得ない値）
+  static const double invalidDuration = 10000.0;
+  static const double invalidScale = 10000.0;
+  static const double invalidOffset = 10000.0;
 }
