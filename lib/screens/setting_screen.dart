@@ -189,23 +189,6 @@ class SettingScreen extends HookConsumerWidget {
 
     // 戻るボタンの処理
     void onBackPressed() async {
-      // 現在の入力値をバリデーション
-      final validationError = notifier.validateCurrentInputs(
-        durationText: durationController.text,
-        scaleText: scaleController.text,
-        xoffsetText: xoffsetController.text,
-        yoffsetText: yoffsetController.text,
-      );
-      if (validationError != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(validationError),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-      
       try {
         await notifier.saveToJsonFile();
         if (context.mounted) {
@@ -295,22 +278,6 @@ class SettingScreen extends HookConsumerWidget {
                           ? const Icon(Icons.check, color: Colors.blue)
                           : null,
                         onTap: () {
-                          // 現在の入力値をバリデーション
-                          final validationError = notifier.validateCurrentInputs(
-                            durationText: durationController.text,
-                            scaleText: scaleController.text,
-                            xoffsetText: xoffsetController.text,
-                            yoffsetText: yoffsetController.text,
-                          );
-                          if (validationError != null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(validationError),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                            return;
-                          }
                           notifier.selectSlide(index);
                         },
                       );
@@ -353,11 +320,7 @@ class SettingScreen extends HookConsumerWidget {
       );
     }
     
-    // 数値フィールドの更新
-    void updateNumericField(String value, Function(double?) updateFunction) {
-      final doubleValue = double.tryParse(value);
-      updateFunction(doubleValue);
-    }
+
     
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -442,9 +405,8 @@ class SettingScreen extends HookConsumerWidget {
           _buildNumberField(
             label: '表示時間 (秒)',
             controller: durationController,
-            onChanged: (value) => updateNumericField(
-              value,
-              (doubleValue) => notifier.updateSlideData(duration: doubleValue),
+            onChanged: (value) => notifier.updateSlideData(
+              duration: double.tryParse(value),
             ),
             hint: '例: 5.0',
           ),
@@ -454,9 +416,8 @@ class SettingScreen extends HookConsumerWidget {
           _buildNumberField(
             label: 'スケール',
             controller: scaleController,
-            onChanged: (value) => updateNumericField(
-              value,
-              (doubleValue) => notifier.updateSlideData(scale: doubleValue),
+            onChanged: (value) => notifier.updateSlideData(
+              scale: double.tryParse(value),
             ),
             hint: '例: 1.2',
           ),
@@ -466,9 +427,8 @@ class SettingScreen extends HookConsumerWidget {
           _buildNumberField(
             label: 'Xオフセット',
             controller: xoffsetController,
-            onChanged: (value) => updateNumericField(
-              value,
-              (doubleValue) => notifier.updateSlideData(xoffset: doubleValue),
+            onChanged: (value) => notifier.updateSlideData(
+              xoffset: double.tryParse(value),
             ),
             hint: '例: 0.1',
           ),
@@ -478,9 +438,8 @@ class SettingScreen extends HookConsumerWidget {
           _buildNumberField(
             label: 'Yオフセット',
             controller: yoffsetController,
-            onChanged: (value) => updateNumericField(
-              value,
-              (doubleValue) => notifier.updateSlideData(yoffset: doubleValue),
+            onChanged: (value) => notifier.updateSlideData(
+              yoffset: double.tryParse(value),
             ),
             hint: '例: -0.05',
           ),
@@ -612,15 +571,6 @@ class SettingScreen extends HookConsumerWidget {
     TextEditingController textController,
     SlideshowSettingsNotifier notifier,
   ) {
-    // キャプション状態の管理
-    final captionState = useState<CaptionState?>(currentSlide?.caption ?? const CaptionState.keep());
-    
-    // スライドが切り替わった時にcaptionStateを更新
-    useEffect(() {
-      captionState.value = currentSlide?.caption ?? const CaptionState.keep();
-      return null;
-    }, [currentSlide?.caption]);
-    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -637,40 +587,36 @@ class SettingScreen extends HookConsumerWidget {
         RadioListTile<CaptionState>(
           title: const Text('キャプションを表示'),
           value: CaptionState.show(textController.text),
-          groupValue: captionState.value is CaptionShow ? captionState.value : null,
+          groupValue: notifier.currentSlide?.caption is CaptionShow ? notifier.currentSlide?.caption : null,
           onChanged: (value) {
-            captionState.value = value;
             notifier.updateSlideData(caption: value);
           },
         ),
         RadioListTile<CaptionState>(
           title: const Text('キャプションを消去'),
           value: const CaptionState.hide(),
-          groupValue: captionState.value is CaptionHide ? captionState.value : null,
+          groupValue: notifier.currentSlide?.caption is CaptionHide ? notifier.currentSlide?.caption : null,
           onChanged: (value) {
-            captionState.value = value;
             notifier.updateSlideData(caption: value);
           },
         ),
         RadioListTile<CaptionState>(
           title: const Text('キャプションを継続'),
           value: const CaptionState.keep(),
-          groupValue: captionState.value is CaptionKeep ? captionState.value : null,
+          groupValue: notifier.currentSlide?.caption is CaptionKeep ? notifier.currentSlide?.caption : null,
           onChanged: (value) {
-            captionState.value = value;
             notifier.updateSlideData(caption: value);
           },
         ),
         
         // キャプション表示が選択されている場合のみテキストフィールドを表示
-        if (captionState.value is CaptionShow)
+        if (notifier.currentSlide?.caption is CaptionShow)
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: TextField(
               controller: textController,
               onChanged: (value) {
                 final newState = CaptionState.show(value);
-                captionState.value = newState;
                 notifier.updateSlideData(caption: newState);
               },
               decoration: const InputDecoration(
