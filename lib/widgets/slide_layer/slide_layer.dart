@@ -5,13 +5,13 @@ import 'main_image.dart';
 
 // スライドレイヤーウィジェット
 class SlideLayer extends StatelessWidget {
-  final String folderPath;
+  final String imagePath; // folderPathから変更してimagePath（絶対パス）を受け取る
   final SlideItem slideData;
   final Size screenSize;
 
   const SlideLayer({
     super.key,
-    required this.folderPath,
+    required this.imagePath,
     required this.slideData,
     required this.screenSize,
   });
@@ -19,7 +19,6 @@ class SlideLayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scale = slideData.scale ?? 1.0;
-    final imagePath = '$folderPath/${slideData.image}';
     
     return SizedBox(
       width: screenSize.width,

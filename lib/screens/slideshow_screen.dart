@@ -163,7 +163,7 @@ class SlideshowScreen extends HookConsumerWidget {
                       panAnimation.dy * screenSize.height,
                     ),
                     child: SlideLayer(
-                      folderPath: folderPath,
+                      imagePath: viewModel.repository.getImagePath(viewModel.currentSlide!.image),
                       slideData: viewModel.currentSlide!,
                       screenSize: screenSize,
                     ),
@@ -187,7 +187,7 @@ class SlideshowScreen extends HookConsumerWidget {
                             )
                           : Offset.zero,
                       child: SlideLayer(
-                        folderPath: folderPath,
+                        imagePath: viewModel.repository.getImagePath(viewModel.nextSlide!.image),
                         slideData: viewModel.nextSlide!,
                         screenSize: screenSize,
                       ),
